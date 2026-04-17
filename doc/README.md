@@ -38,7 +38,11 @@
   - 已完成 `Perceive` 感知阶段第一版可执行草案
   - 已完成 `Appraise` 评价阶段第一版可执行草案
   - 已完成 `Update Working Memory` 阶段第一版可执行草案
-  - 后续将继续补 `Goal Arbitration`、`Action Selection`
+  - 已完成 `Goal Arbitration` 阶段第一版可执行草案
+  - 已完成 `Action Selection` 阶段第一版可执行草案
+  - 已完成 `Act` 阶段第一版可执行草案
+  - 已完成 `Reflect` 阶段第一版可执行草案
+  - 后续将继续补 `Compress`
 - 适用场景：
   - 设计 NPC 思考流程
   - 讨论感知、记忆、关系图和调度器如何衔接
