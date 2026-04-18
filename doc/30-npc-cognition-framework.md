@@ -11,12 +11,13 @@
 - `Action Selection`
 - `Act`
 - `Reflect`
+- `Compress`
 
 本文档服务于以下目的：
 
 - 为实现代理提供统一、可执行、可调试的 NPC 认知规范
 - 明确规则层与 LLM 层的职责边界
-- 为后续 `Compress` 提供稳定输入接口
+- 为长期记忆检索、关系演化和后续横向专题设计提供稳定输入接口
 
 本文档是 [00-master-design.md](C:/codex/project/AIWesternTown/doc/00-master-design.md) 第 6、7、8 章的直接展开文档。
 
@@ -36,7 +37,7 @@ NPC 的标准认知循环定义为：
 
 ### 2.2 当前文档覆盖范围
 
-当前版本已经完成以下七个阶段的第一版正式设计：
+当前版本已经完成以下八个阶段的第一版正式设计：
 
 - `Perceive`
 - `Appraise`
@@ -45,10 +46,9 @@ NPC 的标准认知循环定义为：
 - `Action Selection`
 - `Act`
 - `Reflect`
-
-以下阶段尚未在本文档中正式展开：
-
 - `Compress`
+
+标准认知循环的 8 个阶段已经全部在本文档中完成第一版正式展开。
 
 ### 2.3 状态层约定
 
@@ -106,6 +106,25 @@ NPC 的标准认知循环定义为：
 - `Action Selection` 仍然必须选出一个合法动作类型，例如 `observe` 或 `wait`
 - 当 NPC 决定“暂不显性动作”时，使用 `executionMode = "hold"` 表达克制或延迟执行
 - `Act` 阶段不得把 `hold` 当作独立动作类型消费
+
+### 2.6 横向支撑文档
+
+以下文档作为本文档的横向支撑规范使用：
+
+- [35-memory-retrieval-and-recall.md](C:/codex/project/AIWesternTown/doc/35-memory-retrieval-and-recall.md)
+  - 定义长期记忆读取时机、读取权限、query、缓存和阶段适配
+- [36-npc-cognition-flowcharts.md](C:/codex/project/AIWesternTown/doc/36-npc-cognition-flowcharts.md)
+  - 用 Mermaid 图展示认知主链路、读取支路和执行后闭环
+- [37-npc-cognition-db-design.md](C:/codex/project/AIWesternTown/doc/37-npc-cognition-db-design.md)
+  - 定义身份、目标、工作记忆、长期记忆、读取索引和认知日志的数据库模型
+- [38-npc-cognition-api-spec.md](C:/codex/project/AIWesternTown/doc/38-npc-cognition-api-spec.md)
+  - 定义内部编排器调用各认知阶段与预取/压缩模块的接口契约
+
+当前约定：
+
+- `30-npc-cognition-framework.md` 负责主链路阶段语义和上下游输入输出
+- 横向支撑文档负责存储、读取、流程图和服务接口等侧向专题
+- 若主链路字段与支撑文档出现冲突，以本文档中的资源模型命名为准，再回补支撑文档
 
 ## 3. Perceive 阶段
 
@@ -554,7 +573,7 @@ type RetrievedBeliefSlice = {
   beliefs: {
     memoryId: string;
     summary: string;
-    kind: "episodic" | "social" | "rumor" | "player_model";
+    kind: "episodic" | "social" | "player_model" | "clue";
     importance: number;
   }[];
 };
@@ -563,6 +582,7 @@ type RetrievedBeliefSlice = {
 用途：
 
 - 判断当前输入是否是重复模式、危险信号或已知线索延续
+- 第一版中 `RetrievedBeliefSlice.beliefs.kind` 与长期记忆 `LongTermMemoryItem.kind` 保持一致
 
 ### 4.5 输出结构
 
@@ -2612,7 +2632,7 @@ type ReflectionBeliefSlice = {
   }[];
   retrievedMemories: {
     memoryId: string;
-    kind: "episodic" | "social" | "rumor" | "player_model";
+    kind: "episodic" | "social" | "player_model" | "clue";
     summary: string;
     importance: number;
   }[];
@@ -2623,6 +2643,7 @@ type ReflectionBeliefSlice = {
 
 - 判断本次结果是否改变既有看法
 - 支持“重复模式”与“意外偏差”识别
+- 其中 `retrievedMemories` 子字段由长期记忆读取机制提供，`actorBeliefs` 由 social belief 状态层提供
 
 #### 9.4.6 `ReflectionPolicySlice`
 
@@ -3000,7 +3021,505 @@ function reflect(
 - `light` 模式是否完全禁止调用 LLM
 - 某些长期行为模式是否应在 `Reflect` 就直接触发 player model 更新
 
-## 10. 版本记录
+## 10. Compress 阶段
+
+### 10.1 设计目标
+
+`Compress` 的目标是把 `Reflect` 产出的记忆候选，整理为高质量、可检索、可持续维护的长期记忆。
+
+它需要回答：
+
+- 哪些反思结果值得进入长期记忆
+- 这些候选应写成事件记忆、社交信念、玩家模型还是线索记忆
+- 新候选与已有长期记忆是新增、合并、强化还是丢弃
+- 如何在信息密度和记忆清洁度之间保持平衡
+
+### 10.2 设计原则
+
+- `Compress` 只负责长期记忆整编，不重新解释世界事实
+- 事实来源必须是 `Reflect` 与权威事件记录，而不是自由文本表演
+- 第一版采用“平衡压缩”，避免长期记忆过 sparse 或过 noisy
+- 长期记忆必须结构化、可检索、可合并、可淘汰
+- `Compress` 可以生成摘要和归并结论，但不得生成新动作或直接改写世界状态
+
+### 10.3 设计思路
+
+`Compress` 采用“候选筛选 + 相似记忆检索 + 归并决策 + 长期写入”的设计。
+
+整体思路：
+
+1. 接收 `Reflect` 产出的 `ReflectionMemoryCandidate[]`
+2. 根据重要度、重复度和复用价值做初步筛选
+3. 检索与候选语义相近的长期记忆项
+4. 决定是 `create`、`merge`、`reinforce` 还是 `discard`
+5. 输出新的长期记忆写入结果和压缩摘要
+
+平衡压缩策略的核心是：
+
+- 高重要度、高复用候选直接写入
+- 中等重要度候选在“模式重复”或“会持续影响目标/关系/玩家模型”时写入
+- 一次性、低重要度、低复用候选默认丢弃
+
+关键边界：
+
+- `Reflect` 决定“这件事意味着什么”
+- `Compress` 决定“哪些意义值得留下”
+- 后续的 `Perceive / Appraise / Reflect` 再把这些长期记忆检索回来使用
+
+### 10.4 输入结构
+
+#### 10.4.1 `ReflectionResult`
+
+这是压缩阶段的主判断输入。
+
+重点读取：
+
+- `reflectionId`
+- `mode`
+- `significance`
+- `outcomeAssessment`
+- `updatedHypothesisTags`
+- `actorBeliefUpdates`
+- `goalStatusUpdates`
+- `memoryCandidates`
+- `reflectionSummary`
+
+#### 10.4.2 `ReflectionMemoryCandidate[]`
+
+这是压缩阶段的直接写入候选。
+
+重点读取：
+
+- `kind`
+- `summary`
+- `importance`
+- `sourceEventIds`
+- `relatedActorIds`
+- `shouldCompress`
+
+#### 10.4.3 `LongTermMemoryStoreSlice`
+
+提供与当前候选最相关的一组现有长期记忆。
+
+```ts
+type LongTermMemoryStoreSlice = {
+  memoryItems: LongTermMemoryItem[];
+};
+```
+
+```ts
+type LongTermMemoryItem = {
+  memoryId: string;
+  kind: "episodic" | "social" | "player_model" | "clue";
+  summary: string;
+  importance: number;
+  confidence: number;
+  sourceEventIds: string[];
+  relatedActorIds: string[];
+  tags: string[];
+  reinforcementCount: number;
+  firstStoredAt: number;
+  lastReinforcedAt: number;
+};
+```
+
+用途：
+
+- 做相似检索和去重
+- 支持“新建 / 合并 / 强化 / 丢弃”的决策
+
+#### 10.4.4 `CompressionContextSlice`
+
+提供压缩时需要的执行上下文。
+
+```ts
+type CompressionContextSlice = {
+  npcId: string;
+  currentTick: number;
+  recentStoredMemoryIds: string[];
+  memoryBudget: {
+    maxCreatesPerTick: number;
+    maxReinforcementsPerTick: number;
+  };
+};
+```
+
+用途：
+
+- 避免同一轮重复写入
+- 控制每轮长期记忆增长规模
+
+#### 10.4.5 `CompressionPolicySlice`
+
+定义平衡压缩策略的阈值。
+
+```ts
+type CompressionPolicySlice = {
+  directStoreImportanceThreshold: number;
+  mergeSimilarityThreshold: number;
+  reinforcementSimilarityThreshold: number;
+  discardBelowImportance: number;
+  requirePatternRepeatForMidImportance: boolean;
+};
+```
+
+用途：
+
+- 控制不同重要度候选的去留
+- 固化“平衡压缩”的策略门槛
+
+### 10.5 输出结构
+
+#### 10.5.1 `CompressionResult`
+
+```ts
+type CompressionResult = {
+  compressionId: string;
+  sourceReflectionId: string;
+  createdMemories: LongTermMemoryWrite[];
+  mergedMemories: LongTermMemoryMerge[];
+  reinforcedMemories: LongTermMemoryReinforcement[];
+  discardedCandidates: DiscardedMemoryCandidate[];
+  retrievalSummary: RetrievalSummaryItem[];
+  compressionSummary: string;
+};
+```
+
+#### 10.5.2 `LongTermMemoryWrite`
+
+```ts
+type LongTermMemoryWrite = {
+  memoryId: string;
+  kind: LongTermMemoryItem["kind"];
+  summary: string;
+  importance: number;
+  confidence: number;
+  sourceEventIds: string[];
+  relatedActorIds: string[];
+  tags: string[];
+};
+```
+
+#### 10.5.3 `LongTermMemoryMerge`
+
+```ts
+type LongTermMemoryMerge = {
+  targetMemoryId: string;
+  mergedCandidateIds: string[];
+  newSummary?: string;
+  importanceDelta: number;
+  confidenceDelta: number;
+  reinforcementCountDelta: number;
+};
+```
+
+#### 10.5.4 `LongTermMemoryReinforcement`
+
+```ts
+type LongTermMemoryReinforcement = {
+  targetMemoryId: string;
+  candidateId: string;
+  importanceDelta: number;
+  confidenceDelta: number;
+  reasonTags: string[];
+};
+```
+
+#### 10.5.5 `DiscardedMemoryCandidate`
+
+```ts
+type DiscardedMemoryCandidate = {
+  candidateId: string;
+  reason: "low_importance" | "duplicate" | "one_off_noise" | "budget_limited";
+};
+```
+
+#### 10.5.6 `RetrievalSummaryItem`
+
+```ts
+type RetrievalSummaryItem = {
+  memoryId: string;
+  kind: LongTermMemoryItem["kind"];
+  retrievalHint: string;
+  tags: string[];
+};
+```
+
+### 10.6 处理流程
+
+#### 10.6.1 候选预筛选
+
+先按 `shouldCompress`、`importance` 和预算做第一轮筛选。
+
+默认规则：
+
+- `shouldCompress = false` 的候选默认丢弃
+- 高重要度候选优先进入后续流程
+- 低于 `discardBelowImportance` 的候选默认丢弃
+
+#### 10.6.2 相似长期记忆检索
+
+对每个候选检索相关长期记忆，判断是否已存在相近条目。
+
+匹配维度建议：
+
+- `kind` 是否一致
+- `relatedActorIds` 是否重叠
+- `summary` 是否语义相近
+- `sourceEventIds` 是否有重合或延续关系
+- `tags` 是否命中同一模式
+
+#### 10.6.3 压缩决策
+
+对每个候选输出以下之一：
+
+- `create`
+- `merge`
+- `reinforce`
+- `discard`
+
+建议逻辑：
+
+- 高重要度且无近似项：`create`
+- 高相似且候选补充了新表述：`merge`
+- 高相似但只是再次验证旧结论：`reinforce`
+- 低价值、一次性、不可复用：`discard`
+
+#### 10.6.4 记忆摘要归并
+
+当执行 `create` 或 `merge` 时，需要生成适合长期存储的摘要。
+
+摘要要求：
+
+- 不写瞬时情绪噪声
+- 不写未验证的自由联想
+- 尽量写“可被未来检索和复用的结论”
+
+好例子：
+
+- `玩家会在公开场合持续试探与昨晚事件有关的话题`
+- `治安官在涉及秘密问题时会保持观察但未立即介入`
+
+坏例子：
+
+- `我当时感觉很烦`
+- `也许大家都在针对我`
+
+#### 10.6.5 写入与强化结果生成
+
+根据压缩决策生成：
+
+- `createdMemories`
+- `mergedMemories`
+- `reinforcedMemories`
+- `discardedCandidates`
+
+同时更新用于未来检索的摘要提示。
+
+#### 10.6.6 检索摘要生成
+
+为新写入或刚被强化的重要记忆生成 `retrievalSummary`，供后续记忆检索系统使用。
+
+这一步的目标是：
+
+- 方便未来 `Perceive`/`Appraise` 快速命中关键长期记忆
+- 降低每次都要扫全量长期记忆的成本
+
+### 10.7 设计规格和约束
+
+#### 10.7.1 平衡压缩约束
+
+第一版采用平衡压缩，不允许：
+
+- 所有中低重要候选都直接写入
+- 只保留极少数超级重要记忆，导致角色缺乏经历沉淀
+
+默认策略应让长期记忆既有代表性，又不过度膨胀。
+
+#### 10.7.2 长期记忆质量约束
+
+长期记忆项应满足：
+
+- 可复用
+- 可检索
+- 低噪声
+- 与未来决策相关
+
+不满足这些条件的候选应倾向于 `discard` 或仅做轻度 `reinforce`。
+
+#### 10.7.3 写入预算约束
+
+第一版默认每次 `Compress`：
+
+- 新建记忆不超过 `1-3` 条
+- 强化已有记忆不超过 `1-3` 条
+- 丢弃是默认允许且应常见发生的结果
+
+#### 10.7.4 事实稳定性约束
+
+`Compress` 写入的是“可长期保留的结论”，不是“完整回放原始事件”。
+
+这意味着：
+
+- 记忆摘要必须比 event 更抽象
+- 不能把未经验证的猜想直接固化为高置信度长期记忆
+- 如需保留不确定判断，应降低 `confidence` 或写为模式性提示
+
+### 10.8 与 LLM 的交互边界
+
+#### 10.8.1 第一版规则层负责
+
+- 候选预筛选
+- 预算控制
+- 去重与相似性基础判断
+- `create / merge / reinforce / discard` 的默认决策
+- 写入结果结构化输出
+
+#### 10.8.2 第一版 LLM 适合负责
+
+- 中等重要度但语义复杂候选的泛化判断
+- `newSummary` 的摘要润色
+- `retrievalHint` 的自然语言提炼
+- `compressionSummary` 的自然语言摘要
+
+#### 10.8.3 第一版推荐模式
+
+```text
+rule_precompress_filter -> retrieve_similar_memories -> optional_llm_generalize -> finalize_compression_result
+```
+
+### 10.9 与上下游认知阶段的交互边界
+
+#### 10.9.1 上游边界
+
+`Compress` 默认读取：
+
+- `ReflectionResult`
+- `ReflectionMemoryCandidate[]`
+- `LongTermMemoryStoreSlice`
+- `CompressionContextSlice`
+- `CompressionPolicySlice`
+
+不直接重跑：
+
+- `Act`
+- `Reflect`
+- 原始世界事件判定
+
+#### 10.9.2 下游边界
+
+`Compress` 输出：
+
+- `CompressionResult`
+- 新增/合并/强化后的长期记忆写入结果
+- 未来检索用的 `retrievalSummary`
+
+它不直接：
+
+- 生成动作
+- 修改工作记忆
+- 改写反思结果
+
+这些都属于下一轮认知循环或长期记忆存储层的职责。
+
+### 10.10 透出的接口设计
+
+```ts
+function compressMemory(
+  reflection: ReflectionResult,
+  candidates: ReflectionMemoryCandidate[],
+  existingMemories: LongTermMemoryStoreSlice,
+  context: CompressionContextSlice,
+  policy: CompressionPolicySlice
+): CompressionResult
+```
+
+### 10.11 调试要求
+
+调试视图至少展示：
+
+- 输入的 `ReflectionResult`
+- 输入候选列表及 importance
+- 相似长期记忆检索结果
+- 每个候选的压缩决策
+- `created / merged / reinforced / discarded` 结果
+- `retrievalSummary`
+- `compressionSummary`
+
+### 10.12 示例
+
+场景：医生在公开回避事件后，`Reflect` 产出了一条玩家模型候选和一条事件型候选。
+
+输入摘要：
+
+- `reflectionId = refl-88`
+- 候选：
+  - `mc-19`: 玩家会在公开场合施压并测试昨晚事件相关反应
+  - `mc-20`: 本次公开回避暂时成功但风险未解除
+- 检索到已有长期记忆：
+  - `mem-player-probe-1`: 玩家会试探敏感话题
+
+输出：
+
+```ts
+{
+  compressionId: "cmp-31",
+  sourceReflectionId: "refl-88",
+  createdMemories: [
+    {
+      memoryId: "mem-ep-442",
+      kind: "episodic",
+      summary: "医生曾在酒馆公开回避昨晚事件的追问，并暂时维持了表面掩护。",
+      importance: 0.72,
+      confidence: 0.78,
+      sourceEventIds: ["evt-900"],
+      relatedActorIds: ["doctor", "player", "sheriff"],
+      tags: ["public_deflection", "cover_preserved", "secret_risk"]
+    }
+  ],
+  mergedMemories: [],
+  reinforcedMemories: [
+    {
+      targetMemoryId: "mem-player-probe-1",
+      candidateId: "mc-19",
+      importanceDelta: 0.08,
+      confidenceDelta: 0.06,
+      reasonTags: ["pattern_reconfirmed", "public_pressure_variant"]
+    }
+  ],
+  discardedCandidates: [
+    {
+      candidateId: "mc-20",
+      reason: "duplicate"
+    }
+  ],
+  retrievalSummary: [
+    {
+      memoryId: "mem-player-probe-1",
+      kind: "player_model",
+      retrievalHint: "当玩家在公开场合追问敏感事件时，应优先命中这条玩家施压模式记忆。",
+      tags: ["player_probe_pattern", "public_pressure"]
+    },
+    {
+      memoryId: "mem-ep-442",
+      kind: "episodic",
+      retrievalHint: "涉及酒馆公开追问与医生掩护策略时，可检索这次成功回避的事件记忆。",
+      tags: ["saloon", "deflection", "cover_event"]
+    }
+  ],
+  compressionSummary: "本轮压缩新增一条事件记忆，并强化了一条玩家施压模式记忆，未让重复结论继续污染长期记忆。"
+}
+```
+
+### 10.13 待处理的问题
+
+- `LongTermMemoryItem` 是否需要显式遗忘或衰减字段
+- `merge` 与 `reinforce` 的边界是否要更严格区分
+- 不确定性较高的社会判断是否应拆成单独 memory kind
+- `retrievalSummary` 是否应与向量检索或关键词检索策略绑定
+- 是否需要单独的离线再压缩机制，定期清洗长期记忆库
+
+## 11. 版本记录
 
 - `v0.1`
   - 建立 NPC 认知框架子文档
@@ -3017,3 +3536,5 @@ function reflect(
   - 完成 `Act` 阶段第一版可执行草案
 - `v0.7`
   - 完成 `Reflect` 阶段第一版可执行草案
+- `v0.8`
+  - 完成 `Compress` 阶段第一版可执行草案
