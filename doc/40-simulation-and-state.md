@@ -22,9 +22,11 @@
 
 - [00-master-design.md](C:/codex/project/AIWesternTown/doc/00-master-design.md)
 - [30-npc-cognition-framework.md](C:/codex/project/AIWesternTown/doc/30-npc-cognition-framework.md)
+- [35-memory-retrieval-and-recall.md](C:/codex/project/AIWesternTown/doc/35-memory-retrieval-and-recall.md)
 - [36-npc-cognition-flowcharts.md](C:/codex/project/AIWesternTown/doc/36-npc-cognition-flowcharts.md)
 - [37-npc-cognition-db-design.md](C:/codex/project/AIWesternTown/doc/37-npc-cognition-db-design.md)
 - [38-npc-cognition-api-spec.md](C:/codex/project/AIWesternTown/doc/38-npc-cognition-api-spec.md)
+- [41-sleep-and-epiphany-long-actions.md](C:/codex/project/AIWesternTown/doc/41-sleep-and-epiphany-long-actions.md)
 
 ## 2. 设计原则
 
@@ -646,6 +648,13 @@ type SimulationDebugSummary = {
 - 世界事实权威状态
 
 这些仍属于各自的权威存储和执行阶段。
+
+### 7.13 横向支撑文档约束
+
+以下特殊主题由横向支撑文档继续展开：
+
+- `睡眠 / 顿悟` 这类 NPC 内部长动作及其深处理流程
+  - 见 [41-sleep-and-epiphany-long-actions.md](C:/codex/project/AIWesternTown/doc/41-sleep-and-epiphany-long-actions.md)
 
 ## 8. 与 LLM 的交互边界
 
