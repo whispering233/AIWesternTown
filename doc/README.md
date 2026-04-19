@@ -98,24 +98,46 @@
 #### `40-simulation-and-state.md`
 
 - 角色：世界推进与状态仿真设计文档
-- 用途：规范时间推进、场景泡泡式分层调度、强打断规则、状态补丁、回放和调试边界
+- 用途：定义 world tick、场景泡泡分层调度、强打断、对话挂起/恢复和调度器最小状态字段
 - 适用场景：
-  - 设计世界调度器
-  - 讨论玩家动作如何驱动 `worldTick`
-  - 审阅前台 / 近场 / 远场分层推进规则
+  - 设计时间推进与调度器
+  - 讨论 foreground / near_field / far_field 分层
+  - 审阅强打断和回放边界
 - 阅读要求：
-  - 涉及世界推进、局部仿真、事件插入和状态回放时优先阅读
+  - 涉及世界步进、事件调度、强打断和回放时优先阅读
 
 #### `41-sleep-and-epiphany-long-actions.md`
 
-- 角色：睡眠与顿悟长动作支撑设计文档
-- 用途：规范 NPC 内部长动作、结算时深度处理、长期记忆深检索和有限身份演化层更新
+- 角色：睡眠 / 顿悟长动作设计文档
+- 用途：定义睡眠与顿悟的触发、执行、打断、深检索和有限身份演化层更新
 - 适用场景：
-  - 设计 NPC 睡眠 / 顿悟期间的世界推进关系
-  - 设计结算时如何触发长时记忆与身份的深度整合
-  - 审阅长动作打断、丢弃和深处理写回边界
+  - 设计 NPC 内部长动作
+  - 讨论深度处理与被打断后的丢弃规则
+  - 审阅身份演化层的有限更新边界
 - 阅读要求：
-  - 涉及内部长动作、深度检索、身份演化时优先阅读 [40-simulation-and-state.md](C:/codex/project/AIWesternTown/doc/40-simulation-and-state.md) 后再阅读
+  - 涉及睡眠、顿悟、长动作和深检索时优先阅读
+
+#### `50-llm-integration.md`
+
+- 角色：LLM 集成主设计文档
+- 用途：定义 provider 抽象、阶段级 LLM 职责边界、调用触发、预算裁剪、降级路径和安全回收机制
+- 适用场景：
+  - 设计规则层与 LLM 层如何协作
+  - 规划 provider 接入、预算控制和降级
+  - 审阅模型输出如何被解析、守卫和回退
+- 阅读要求：
+  - 涉及 LLM 接入、Prompt Builder、模型预算、解析安全时优先阅读
+
+#### `51-prompt-builder-contract.md`
+
+- 角色：Prompt Builder 横向支撑契约文档
+- 用途：定义 `PromptSpec`、阶段 DTO、role-aware compiler、parser 和 builder registry
+- 适用场景：
+  - 实现 Prompt Builder 和 role-aware message compiler
+  - 审阅结构化 prompt 资源模型与 parser 契约
+  - 调试 system/user/assistant role 分工和最终消息样例
+- 阅读要求：
+  - 涉及 PromptSpec、role-aware 编译、schema parser 时优先阅读
 
 ## 后续规划中的文档
 
@@ -128,14 +150,6 @@
 ### `20-core-game-loop.md`
 
 - 负责玩家循环、输入模式、可见信息结构和结局组织方式
-
-### `40-simulation-and-state.md`
-
-- 负责时间推进、事件总线、状态结构、会话生命周期、存档和回放
-
-### `50-llm-integration.md`
-
-- 负责模型 provider 抽象、LLM 职责、预算控制和降级策略
 
 ### `60-content-production-rules.md`
 
@@ -185,3 +199,6 @@
 然后继续阅读：
 
 - `30-npc-cognition-framework.md`
+- `40-simulation-and-state.md`
+- `50-llm-integration.md`
+- `51-prompt-builder-contract.md`

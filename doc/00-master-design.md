@@ -19,6 +19,7 @@
 
 - NPC 认知框架第一版已基本完成
 - 世界推进与状态仿真第一版已基本完成
+- LLM 集成与 Prompt Builder 第一版已完成独立子设计
 - 本文档第 6、7、8 章已经有对应的可执行子设计文档承接
 - 本文档继续作为总览规范，负责概括已收敛结论和记录尚未拆分的主题边界
 
@@ -606,6 +607,10 @@ LLM 层负责以下内容：
   - 负责世界时间推进、场景泡泡式分层调度、强打断规则、调度状态结构与回放调试边界
 - `doc/41-sleep-and-epiphany-long-actions.md`
   - 负责睡眠 / 顿悟长动作、结算时深度处理、长期记忆深检索与有限身份演化层更新
+- `doc/50-llm-integration.md`
+  - 负责 LLM provider 抽象、阶段级职责边界、预算控制、降级路径与安全回收
+- `doc/51-prompt-builder-contract.md`
+  - 负责 PromptSpec、阶段 DTO、role-aware compiler、parser 与 builder registry 的横向契约
 
 ### 12.2 仍待拆分的文档
 
@@ -613,8 +618,6 @@ LLM 层负责以下内容：
   - 负责世界设定、场景结构、单局叙事弧线、主题边界
 - `doc/20-core-game-loop.md`
   - 负责玩家循环、输入模式、可见信息和结局结构
-- `doc/50-llm-integration.md`
-  - 负责 provider 抽象、模型职责、预算和降级路径
 - `doc/60-content-production-rules.md`
   - 负责角色模板、秘密模板、事件模板和写作约束
 - `doc/90-open-questions.md`
@@ -628,7 +631,7 @@ LLM 层负责以下内容：
 - 8 名核心 NPC 的首批角色池与相互关系图
 - 玩家自由输入的意图解析粒度和兜底策略
 - 单局结局类型和结局触发阈值
-- provider 抽象的接口形态和首批模型接入顺序
+- 首批云端 / 本地模型接入顺序与选型
 - 调试视图和开发者工具的展示形式
 - 长期记忆存储实现、检索基础设施与后续向量化策略
 - 社交信念与 player model 是否需要继续拆出独立专题文档
@@ -662,3 +665,8 @@ LLM 层负责以下内容：
   - 将睡眠 / 顿悟定义为 NPC 的可中断内部长动作
   - 回写“只在正常结算时触发深度处理、被打断则整次任务丢弃”的边界
   - 补充有限身份演化层与长动作深检索更新规则
+- `v0.6`
+  - 新增 `doc/50-llm-integration.md`
+  - 新增 `doc/51-prompt-builder-contract.md`
+  - 锁定第一版采用“规则主导，LLM 附着”的保守集成方案
+  - 回写 provider 抽象、Prompt Builder、预算裁剪、降级和安全回收边界
