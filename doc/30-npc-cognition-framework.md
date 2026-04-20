@@ -119,6 +119,10 @@ NPC 的标准认知循环定义为：
   - 定义身份、目标、工作记忆、长期记忆、读取索引和认知日志的数据库模型
 - [38-npc-cognition-api-spec.md](C:/codex/project/AIWesternTown/doc/38-npc-cognition-api-spec.md)
   - 定义内部编排器调用各认知阶段与预取/压缩模块的接口契约
+- [42-item-system-and-interaction.md](C:/codex/project/AIWesternTown/doc/42-item-system-and-interaction.md)
+  - 定义物品动作、隐蔽转移、发现后果与物品事件如何接入认知主链路
+- [43-item-schema-and-content-config.md](C:/codex/project/AIWesternTown/doc/43-item-schema-and-content-config.md)
+  - 定义物品模板、实例、占有真相和初始认知 schema
 
 当前约定：
 

@@ -139,6 +139,28 @@
 - 阅读要求：
   - 涉及睡眠、顿悟、长动作和深检索时优先阅读
 
+#### `42-item-system-and-interaction.md`
+
+- 角色：物品系统与交互设计文档
+- 用途：定义物品的一等实体语义、玩家与 NPC 的统一物品动作、隐蔽行为与发现规则，以及物品如何接入观察、认知、事件与调度
+- 适用场景：
+  - 设计玩家与 NPC 如何拾取、放下、赠送、索要、偷拿、放回或使用物品
+  - 讨论物品缺失、容器异常和藏匿行为如何进入可见后果与记忆
+  - 为玩法循环、认知系统和 world tick 调度补齐物品相关边界
+- 阅读要求：
+  - 涉及物品交互、容器、隐蔽动作和物品事件时优先阅读
+
+#### `43-item-schema-and-content-config.md`
+
+- 角色：物品数据模型与内容配置设计文档
+- 用途：定义物品模板、容器模板、实例、占有真相、初始认知和会话装配覆盖等 schema
+- 适用场景：
+  - 设计关键物、场景容器和初始归属配置
+  - 审阅物品内容包、关键物开局和认知覆盖逻辑
+  - 为后续数据库设计、存档和 API 设计提供 schema 依据
+- 阅读要求：
+  - 涉及物品配置、内容包、schema 校验和会话装配时优先阅读
+
 #### `50-llm-integration.md`
 
 - 角色：LLM 集成主设计文档
@@ -214,5 +236,7 @@
 
 - `30-npc-cognition-framework.md`
 - `40-simulation-and-state.md`
+- `42-item-system-and-interaction.md`
+- `43-item-schema-and-content-config.md`
 - `50-llm-integration.md`
 - `51-prompt-builder-contract.md`

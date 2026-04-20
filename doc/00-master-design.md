@@ -17,6 +17,7 @@
 - 场景分区与可见性设计第一版已完成
 - NPC 认知框架第一版已完成主链路设计
 - 世界推进与状态仿真第一版已完成
+- 物品系统与数据模型设计第一版已完成
 - LLM 集成与 Prompt Builder 第一版已完成
 
 ## 2. 项目定位
@@ -326,6 +327,8 @@ LLM 负责：
 
 - `CharacterCard`
 - `RelationshipSeed`
+- `ItemTemplate`
+- `ContainerTemplate`
 - `NarrativeLine`
 - `EventTemplate`
 - `EndingTemplate`
@@ -369,6 +372,8 @@ LLM 负责：
 - `doc/38-npc-cognition-api-spec.md`
 - `doc/40-simulation-and-state.md`
 - `doc/41-sleep-and-epiphany-long-actions.md`
+- `doc/42-item-system-and-interaction.md`
+- `doc/43-item-schema-and-content-config.md`
 - `doc/50-llm-integration.md`
 - `doc/51-prompt-builder-contract.md`
 
@@ -381,6 +386,7 @@ LLM 负责：
 
 - 做世界与叙事设计时，先读 `doc/10`、`doc/20`、`doc/25`、`doc/40`
 - 做 NPC 与记忆设计时，先读 `doc/30`、`doc/35`、`doc/36`、`doc/37`、`doc/38`
+- 做物品系统、容器配置和关键物设计时，先读 `doc/42`、`doc/43`，再回看 `doc/20`、`doc/25`、`doc/30`、`doc/40`
 - 做模型接入时，先读 `doc/50`、`doc/51`
 
 ## 13. 当前待讨论问题

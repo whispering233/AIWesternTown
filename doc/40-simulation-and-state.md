@@ -655,6 +655,10 @@ type SimulationDebugSummary = {
 
 - `睡眠 / 顿悟` 这类 NPC 内部长动作及其深处理流程
   - 见 [41-sleep-and-epiphany-long-actions.md](C:/codex/project/AIWesternTown/doc/41-sleep-and-epiphany-long-actions.md)
+- `物品占有关系、隐蔽转移、发现后果与物品相关机会`
+  - 见 [42-item-system-and-interaction.md](C:/codex/project/AIWesternTown/doc/42-item-system-and-interaction.md)
+- `物品模板、实例、占有真相与会话装配 schema`
+  - 见 [43-item-schema-and-content-config.md](C:/codex/project/AIWesternTown/doc/43-item-schema-and-content-config.md)
 
 ## 8. 与 LLM 的交互边界
 
