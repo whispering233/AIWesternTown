@@ -38,16 +38,16 @@
 
 ### 3.3 设计思路
 
-第一版采用“统一调用模式 + provider capability 描述”的思路。
+第一版采用“统一业务调用模式 + provider capability / 运行保障能力描述”的思路。
 
-上层只认四类调用模式：
+上层业务只认三类调用模式：
 
 1. `classify`
 2. `summarize`
 3. `render`
-4. `health_or_mock`
+`healthCheck()` 和 mock fallback 不属于 `ProviderMode`；它们是 provider 生命周期探测与运行保障能力，用于可用性检查、降级和兜底，不作为业务调用 mode 暴露给上层。
 
-这样阶段实现不需要知道底层是云端模型、本地模型还是 mock，只需要知道当前要做的是分类、摘要还是渲染。
+这样阶段实现不需要知道底层是云端模型、本地模型还是 mock，只需要知道当前要做的是分类、摘要还是渲染；至于健康检查和 mock 兜底，由 provider 编排或运行时策略处理。
 
 ### 3.4 输入结构
 
@@ -134,6 +134,7 @@ type ProviderCapability = {
   supportsAssistantRole: boolean;
   maxContextTokens?: number;
   recommendedTimeoutMs?: number;
+  supportsMockFallback?: boolean;
 };
 ```
 

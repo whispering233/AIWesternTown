@@ -87,7 +87,19 @@
 
 - `Compress` 允许做“相似长期记忆检索”，但它属于写入侧去重，不属于认知读取
 
-### 5.3 统一读取层
+### 5.3 特殊读取请求方例外
+
+在上述“阶段读取权限”之外，第一版额外允许一种不属于常规逐 tick 阶段的特殊读取请求方：
+
+- `deep_process`
+  - 仅用于 [41-sleep-and-epiphany-long-actions.md](C:/codex/project/AIWesternTown/doc/41-sleep-and-epiphany-long-actions.md) 定义的长动作结算深处理
+  - 不属于 `Perceive / Appraise / Reflect` 任一常规阶段
+  - 不复用 `TickMemoryReadContext`
+  - 但复用同一套 `Memory Retrieval Engine` 与统一命中结构
+
+因此，`deep_process` 是统一读取契约下的特殊 requester，而不是对常规阶段读取权限的扩张。
+
+### 5.4 统一读取层
 
 长期记忆读取不由每个阶段直接实现，而是拆成：
 
@@ -178,6 +190,7 @@
 - 不直接决定阶段如何消费结果
 - 不负责 working memory 更新
 - 不负责长期记忆写入
+- 不要求所有 requester 都属于常规逐 tick 阶段
 
 ### 7.2 `Stage Query Builder`
 
@@ -192,6 +205,8 @@
 - 把阶段上下文转换成标准化 `MemoryRetrievalQuery`
 - 决定该阶段允许检索的 memory kind
 - 决定返回上限和 cue 结构
+
+`deep_process` 不属于 `Stage Query Builder` 覆盖范围；它作为长动作结算时的特殊 requester，可单独构造 query，但仍进入同一个 `Memory Retrieval Engine`。
 
 ### 7.3 `Stage Result Adapter`
 
@@ -220,6 +235,7 @@
 
 - 创建于 `tick_start`
 - 销毁于 `tick_end`
+- 仅服务于 `cycle_prefetch / perceive / appraise / reflect`
 
 #### 8.1.3 核心作用
 
@@ -265,7 +281,7 @@
 
 ```ts
 type MemoryRetrievalQuery = {
-  requester: "cycle_prefetch" | "perceive" | "appraise" | "reflect";
+  requester: "cycle_prefetch" | "perceive" | "appraise" | "reflect" | "deep_process";
   npcId: string;
   tick: number;
   sceneId?: string;
@@ -283,7 +299,9 @@ type MemoryRetrievalQuery = {
 字段说明：
 
 - `requester`
-  - 发起阶段
+  - 发起读取的请求方
+  - 常规逐 tick requester 为 `cycle_prefetch / perceive / appraise / reflect`
+  - `deep_process` 为长动作结算深处理专用 requester，不进入常规阶段权限与 `TickMemoryReadContext`
 - `cueTexts`
   - 当前要“想起什么”的语义线索
 - `memoryKinds`
@@ -302,6 +320,12 @@ type TickMemoryReadContext = {
   ledger: RetrievalLedgerEntry[];
 };
 ```
+
+说明：
+
+- `prefetchedHits` 始终保存完整的 `RetrievedMemoryHit[]`
+- 若外部接口或编排器使用 `readContextPatch` 承接预取结果，则其 `prefetchedHits` 数据形状必须与这里一致，表示“写入 `TickMemoryReadContext.prefetchedHits` 的完整命中对象增量”，而不是仅传 `memoryId[]`
+- `readContextPatch` 是否由服务端直接返回，还是由编排器根据 `MemoryRetrievalResult.hits` 本地构造，仍保持开放
 
 ### 9.3 `StageRetrievalCacheEntry`
 
@@ -324,6 +348,11 @@ type RetrievalLedgerEntry = {
   consumedByStages: ("perceive" | "appraise" | "reflect")[];
 };
 ```
+
+说明：
+
+- `RetrievalLedgerEntry` 只记录常规逐 tick 读取命中轨迹
+- `deep_process` 不写入该 ledger，因为它不属于单 tick 阶段读取
 
 ### 9.5 `RetrievedMemoryHit`
 
@@ -592,6 +621,11 @@ function retrieveMemoriesForStage(
   memoryStore: LongTermMemoryStoreSlice
 ): MemoryRetrievalResult
 ```
+
+说明：
+
+- 本接口仅服务常规逐 tick 阶段读取
+- `deep_process` 虽复用 `MemoryRetrievalQuery` 与统一检索引擎，但不通过该接口进入 `TickMemoryReadContext`
 
 ### 14.3 阶段适配接口
 

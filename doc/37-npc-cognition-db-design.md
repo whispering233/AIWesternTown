@@ -5,15 +5,16 @@
 | Item | Content |
 | --- | --- |
 | Document title | `AIWesternTown NPC cognition data model` |
-| Business goal | 为 NPC 认知循环提供可持久化、可检索、可回放的数据模型，支撑身份、目标、工作记忆、社交信念、长期记忆与认知事件日志。 |
-| Scope | 覆盖 `npc_identity_profile`、`npc_goal_definition`、`npc_social_belief_edge`、`npc_working_memory_item`、`npc_long_term_memory_item`、`npc_memory_retrieval_summary`、`npc_cognition_event_log` 七张表及其关系。 |
+| Business goal | 为 NPC 认知循环提供可持久化、可检索、可回放的数据模型，支撑身份、目标、工作记忆、社交信念、长期记忆、身份演化与认知事件日志。 |
+| Scope | 覆盖 `npc_identity_profile`、`npc_goal_definition`、`npc_social_belief_edge`、`npc_working_memory_item`、`npc_long_term_memory_item`、`npc_memory_retrieval_summary`、`npc_cognition_event_log`、`npc_identity_evolution_state` 八个正式存储对象，以及 `NextCyclePriming` 的短期运行态快照契约。 |
 | Non-goals | 不覆盖世界地图、玩家主存档、对话内容全文存储、向量检索基础设施、tick 内临时 `TickMemoryReadContext` 内存结构。 |
 | Related systems | [30-npc-cognition-framework.md](C:/codex/project/AIWesternTown/doc/30-npc-cognition-framework.md), [35-memory-retrieval-and-recall.md](C:/codex/project/AIWesternTown/doc/35-memory-retrieval-and-recall.md), world simulation state store, internal cognition orchestrator |
 
 当前版本采用如下存储假设：
 
 - 单个物理 schema 或逻辑数据库实例默认对应单个存档上下文
-- 因此本文档中的可变运行态表暂不显式携带 `save_id`
+- API / 编排层仍可使用 `X-Save-Id` 作为逻辑上下文绑定；在当前“单存档单库”部署下，服务端可将其解析并路由到唯一运行态库或实例
+- 因此本文档中的可变运行态表暂不显式携带 `save_id`，这不等于否定上层请求必须声明存档上下文
 - 若后续需要让多个存档共享同一物理库，应把 `save_id` 或 `simulation_id` 升级为所有运行态表的复合主键前缀或分区键
 
 ## 2. Table Inventory
@@ -27,6 +28,13 @@
 | `npc_long_term_memory_item` | 存储长期记忆正文 | N:1 关联 `npc_identity_profile` |
 | `npc_memory_retrieval_summary` | 存储长期记忆读取索引层 | N:1 关联 `npc_long_term_memory_item` |
 | `npc_cognition_event_log` | 存储认知链路中用于回放、审计和调试的阶段结果摘要 | N:1 关联 `npc_identity_profile` |
+| `npc_identity_evolution_state` | 存储会跨 tick 生效的身份演化运行态 | 1:1 关联 `npc_identity_profile` |
+
+## 2.1 Runtime Snapshot Contracts
+
+| Contract | Storage home | Lifecycle | Relation |
+| --- | --- | --- | --- |
+| `NextCyclePriming` | save 作用域内的 NPC 运行态快照存储，以 `npc_id` 为键；不单独建表 | 短期运行态；仅在 `valid_until_tick` 前有效，被下一次成功消费后清除；若存档发生在有效期内则随运行态快照一起保存 | 由长动作深处理生成，供下一轮 `Cycle Prefetch` / `Appraise` 预激活 |
 
 ## 3. Single Table Design
 
@@ -460,6 +468,61 @@
 - `payload_json` 容易膨胀，需要日志裁剪策略。
 - 是否拆分为 `world_event_log` 和 `cognition_debug_log` 两张表，To be confirmed。
 
+### 3.8 `npc_identity_evolution_state`
+
+#### 3.8.1 Table Summary
+
+| Item | Content |
+| --- | --- |
+| Table name | `npc_identity_evolution_state` |
+| Purpose | 存储会跨 tick 影响后续认知的身份演化运行态，不改写基础身份档案。 |
+| Primary key | `npc_id` |
+| Write pattern | 中低频更新，主要由 `sleep / epiphany` 深处理结算时写回。 |
+| Read pattern | 中高频读取，供 `Cycle Prefetch`、`Appraise`、`Reflect`、长动作深处理读取。 |
+
+#### 3.8.2 Field Definitions
+
+| Column | Type | Nullable | Default | Key role | Description |
+| --- | --- | --- | --- | --- | --- |
+| `npc_id` | `UUID` | no | none | pk/fk | 所属 NPC，与 `npc_identity_profile.npc_id` 对齐。 |
+| `current_self_narrative` | `TEXT` | yes | none | normal | 当前自我叙事快照，对应 `currentSelfNarrative`。 |
+| `active_identity_tensions_json` | `JSONB` | no | `'[]'` | normal | 当前活跃身份张力列表，对应 `activeIdentityTensions`。 |
+| `reinforced_drift_tags_json` | `JSONB` | no | `'[]'` | normal | 已被强化的身份漂移 tag 列表。 |
+| `last_deep_processed_at_tick` | `BIGINT` | yes | none | normal | 最近一次深处理成功写回的 tick。 |
+| `updated_at` | `TIMESTAMP` | no | `CURRENT_TIMESTAMP` | normal | 最近更新时间。 |
+
+#### 3.8.3 Index Design
+
+| Index name | Type | Columns | Purpose |
+| --- | --- | --- | --- |
+| `pk_npc_identity_evolution_state` | primary | `npc_id` | 主键定位并保证单 NPC 只有一份运行态。 |
+| `idx_identity_evolution_last_tick` | normal | `last_deep_processed_at_tick` | 支持按最近深处理窗口排查和运维抽样。 |
+
+#### 3.8.4 Constraints and Data Rules
+
+| Rule type | Content |
+| --- | --- |
+| Unique constraints | `npc_id` 全局唯一。 |
+| Foreign key or logical relation | `npc_id -> npc_identity_profile.npc_id`。 |
+| Enum or status values | `active_identity_tensions_json.kind`、`direction` 应复用认知层固定枚举。 |
+| Data validation | `active_identity_tensions_json`、`reinforced_drift_tags_json` 必须为 JSON array；`intensity` 范围建议限制在 `0-1`。 |
+| Soft delete strategy | 不使用软删；删除 NPC 运行态时与 `npc_identity_profile` 一起移除。 |
+| Audit fields | `updated_at`, `last_deep_processed_at_tick`。 |
+
+#### 3.8.5 Lifecycle and Capacity
+
+| Item | Content |
+| --- | --- |
+| Retention | 单局全程保留，并随存档快照保留。 |
+| Growth expectation | 每个 NPC 固定一行，体量接近 `npc_identity_profile`。 |
+| Archival strategy | 作为运行态快照直接整表归档。 |
+| Partition or sharding note | 不需要；多存档共库时应把 `save_id` 加入主键前缀。 |
+
+#### 3.8.6 Risks and Open Questions
+
+- `active_identity_tensions_json` 后续若出现高频局部更新压力，可再拆成子表；第一版先保持单行 JSONB。
+- `current_self_narrative` 是否需要历史回放轨迹，当前不在此表展开，依赖 `npc_cognition_event_log` 留痕。
+
 ## 4. Cross-Table Relationships
 
 | From table | To table | Relationship | Notes |
@@ -470,24 +533,30 @@
 | `npc_long_term_memory_item` | `npc_identity_profile` | `N:1` | 一个 NPC 有多条长期记忆。 |
 | `npc_memory_retrieval_summary` | `npc_long_term_memory_item` | `1:1` | 一条长期记忆对应一条读取索引。 |
 | `npc_cognition_event_log` | `npc_identity_profile` | `N:1` | 一个 NPC 产生多条认知阶段日志。 |
+| `npc_identity_evolution_state` | `npc_identity_profile` | `1:1` | 一个 NPC 对应一份身份演化运行态。 |
 
 ## 5. Consistency and Transaction Notes
 
 - `Compress` 写长期记忆正文和 `npc_memory_retrieval_summary` 时应放在同一事务内，避免正文和索引层失配。
 - `Update Working Memory` 对同一 NPC 的短时焦点更新建议使用单事务，避免 active/background 状态半更新。
 - `Reflect` 产生的 belief update hint 不应直接在反思事务中改社交边，应交由统一状态更新器处理。
+- 长动作深处理若同时产出长期记忆写回与 `IdentityEvolutionPatch`，应把 `npc_long_term_memory_item`、`npc_memory_retrieval_summary`、`npc_identity_evolution_state` 放在同一结算事务内提交。
+- `NextCyclePriming` 属于短期运行态快照，可在结算成功后独立写入；重复写入应以更晚的 `valid_until_tick` 覆盖旧值。
 - `npc_cognition_event_log` 允许 eventual consistency，失败时不应阻断主仿真流程，但应记录告警。
-- 当前文档默认一套运行态表只服务一个存档上下文；若多个存档共库，所有写事务都必须带 `save_id` 或等价的分区键参与主键和索引设计。
+- 当前文档默认一套运行态表只服务一个存档上下文；上层接口传入的 `X-Save-Id` 在这一部署下应先被服务端映射到唯一运行态库或实例，再落到不含 `save_id` 的表设计。
+- 若多个存档共库，所有写事务都必须带 `save_id` 或等价的分区键参与主键和索引设计。
 
 ## 6. Migration and Compatibility Impact
 
 - 新增表属于增量设计，对现有项目兼容性风险低。
 - `npc_working_memory_item` 与 `npc_long_term_memory_item` 的 JSONB 字段较多，后续若转结构化子表需要数据迁移。
 - `npc_memory_retrieval_summary` 的存在意味着读取侧不应直接依赖长期记忆正文做首轮召回。
+- `npc_identity_evolution_state` 引入后，`IdentityEvolutionLayer` 不再是纯内存概念，而是单 NPC 一行的持久化运行态。
+- `NextCyclePriming` 第一版保持为运行态快照契约，不做关系表迁移；只有当后续出现多条并存或复杂衰减规则时再升级为正式表。
 - 若后续引入向量检索，可能需要为 `npc_long_term_memory_item` 或 `npc_memory_retrieval_summary` 补充向量列；当前留为 To be confirmed。
-- 若后续从“单存档单库”切换到“多存档共库”，需要把 `save_id` 引入 `npc_goal_definition`、`npc_social_belief_edge`、`npc_working_memory_item`、`npc_long_term_memory_item`、`npc_memory_retrieval_summary`、`npc_cognition_event_log`，并评估 `npc_identity_profile` 是否需要拆为模板层与运行态快照层。
+- 若后续从“单存档单库”切换到“多存档共库”，需要把 `save_id` 引入 `npc_goal_definition`、`npc_social_belief_edge`、`npc_working_memory_item`、`npc_long_term_memory_item`、`npc_memory_retrieval_summary`、`npc_cognition_event_log`、`npc_identity_evolution_state`，并评估 `npc_identity_profile` 是否需要拆为模板层与运行态快照层。
 
 ## 7. Appendix
 
-- 当前文档基于现有认知设计文档抽取稳定实体，未包含 tick 内纯内存结构，如 `TickMemoryReadContext`。
+- 当前文档基于现有认知设计文档抽取稳定实体；`NextCyclePriming` 例外地以短期运行态快照契约记录，因为它跨 tick 生效但不值得在第一版单独建表。
 - 若后续需要正式 DDL，可在本设计稳定后单独生成，不在本文件内直接给出。

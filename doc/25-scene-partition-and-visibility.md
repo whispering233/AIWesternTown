@@ -427,9 +427,9 @@ type PlayerPartitionStepResult = {
   - 自由文本意图解析细则
   - NPC 主动换位策略
 
-### 5.9 【按需追加章节】玩家动作改动建议
+### 5.9 【按需追加章节】与主循环对齐的玩家动作扩展
 
-建议在现有 `ParsedPlayerAction` 中增加：
+为与 [20-core-game-loop.md](C:/codex/project/AIWesternTown/doc/20-core-game-loop.md) 对齐，`reposition` 作为正式动作类加入统一 `ParsedPlayerAction`：
 
 ```ts
 type ParsedPlayerAction = {
@@ -510,7 +510,7 @@ function resolvePartitionRepositionPolicy(
 
 ### 6.3 设计思路
 
-每个有效玩家动作后，在 NPC 响应前插入一层统一的空间切片更新：
+每个 `consumesTick = true` 的玩家动作后，在 NPC 响应前插入一层统一的空间切片更新：
 
 `玩家动作 -> 更新玩家分区/相关 NPC 分区 -> 构造分区感知切片 -> NPC Perceive -> 后续认知链 -> 玩家可见结果`
 

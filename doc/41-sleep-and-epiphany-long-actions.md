@@ -218,6 +218,13 @@ type IdentityEvolutionSlice = {
 };
 ```
 
+存储归属说明：
+
+- `IdentityEvolutionLayer` 第一版采用持久化运行态策略
+- 其最小存储归属为 [37-npc-cognition-db-design.md](C:/codex/project/AIWesternTown/doc/37-npc-cognition-db-design.md) 中的 `npc_identity_evolution_state`
+- 它按 `npc_id` 一对一保存，会跨 tick、跨常规认知循环持续生效，并随存档快照保留
+- 它不是基础身份档案的一部分，不能反向覆盖 `npc_identity_profile`
+
 ```ts
 type IdentityTensionItem = {
   tensionId: string;
@@ -249,6 +256,11 @@ type DeepRetrievalQuery = {
 };
 ```
 
+说明：
+
+- `deep_process` 与 [35-memory-retrieval-and-recall.md](C:/codex/project/AIWesternTown/doc/35-memory-retrieval-and-recall.md) 的 `MemoryRetrievalQuery.requester` 保持一致
+- 它是统一检索契约下的特殊 requester，不属于常规逐 tick 阶段 requester
+
 ### 4.7 深处理读取上下文
 
 ```ts
@@ -266,6 +278,7 @@ type DeepProcessingReadContext = {
 - 不复用 `TickMemoryReadContext`
 - 因为深处理不是常规逐 tick 认知阶段的一部分
 - 但仍应复用统一检索引擎和命中结构
+- 因此它只复用读取契约中的 requester / query / hit 语义，不复用常规阶段缓存与 ledger
 
 ## 5. 输出结构
 
@@ -333,6 +346,8 @@ type NextCyclePrimingPatch = {
 - 深处理不直接改 working memory
 - 但允许为下一轮 `Cycle Prefetch` 提供少量激活提示
 - 这样深处理结果能在之后被“想起”，而不是立即粗暴改写短时焦点
+- `NextCyclePrimingPatch` 第一版不单独建数据库表，而是写入 save 作用域内、以 `npcId` 为键的短期运行态快照
+- 该快照只保留到 `validUntilTick`，并在下一次成功消费后立即清除；若存档发生在有效期内则随运行态快照一起保存
 
 ### 5.5 中断丢弃输出
 
@@ -475,6 +490,8 @@ type DeepInsight = {
 
 在长期记忆写回之后，深处理可生成一次 `IdentityEvolutionPatch`。
 
+该补丁应写入 `npc_identity_evolution_state`，作为后续认知阶段共享的持久化运行态。
+
 它允许：
 
 - 更新 `currentSelfNarrative`
@@ -495,6 +512,8 @@ type DeepInsight = {
 
 - 让下一轮 `Cycle Prefetch` 更容易命中刚整合出的关键主题
 - 让长动作后的 NPC 表现出“醒来后确实带着新念头”
+
+存储上，它只属于短期运行态快照，不进入正式关系表；默认生命周期为“生成后到下一轮成功消费或 `validUntilTick` 到期”为止。
 
 ### 6.11 结束与清理
 
@@ -629,8 +648,10 @@ resolve_long_action
 这意味着：
 
 - `deep_process` 是独立于常规 `perceive/appraise/reflect` 的特殊读取请求方
+- 它与 `cycle_prefetch` 一样属于 requester 层概念，而不是阶段权限的同义词
 - 它不是普通逐 tick 认知读取的一部分
 - 它只在长动作结算时出现
+- 它不进入常规阶段缓存或 tick 内命中 ledger
 
 ### 9.3 与 `Reflect / Compress` 的边界
 
@@ -655,6 +676,8 @@ resolve_long_action
 - `Reflect`
 
 ## 10. 透出的接口设计
+
+本节定义的是服务内/内部编排层函数契约；其最小 HTTP 级内部 API inventory 由 [38-npc-cognition-api-spec.md](C:/codex/project/AIWesternTown/doc/38-npc-cognition-api-spec.md) 收录，且只收录 `enter/advance/abort/resolve long action` 与 `runDeepProcessing` 这组最小必要接口。
 
 ### 10.1 长动作生命周期接口
 
@@ -801,8 +824,6 @@ function applyIdentityEvolutionPatch(
 ## 13. 待处理的问题
 
 1. `sleep` 和 `epiphany` 的进入条件是否应继续拆成不同规则集
-2. `IdentityEvolutionLayer` 是否需要单独数据库表，还是先放在运行态存档结构中
-3. `NextCyclePrimingPatch` 是否需要过期衰减机制
-4. 深处理是否需要区分“纯记忆整合”和“身份重组”两种强度档
-5. 深处理结果是否应允许有限影响后续 `Goal Arbitration`，还是只经由记忆与身份层间接影响
-6. 是否需要专门的“恢复失败后重新尝试长动作”的冷却规则
+2. 深处理是否需要区分“纯记忆整合”和“身份重组”两种强度档
+3. 深处理结果是否应允许有限影响后续 `Goal Arbitration`，还是只经由记忆与身份层间接影响
+4. 是否需要专门的“恢复失败后重新尝试长动作”的冷却规则

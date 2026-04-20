@@ -240,7 +240,7 @@ function projectActorInventory(
 type ItemActionIntent = {
   actionId: string;
   actorId: string;
-  actionType:
+  itemActionType:
     | "pick_up"
     | "drop"
     | "put_into_container"
@@ -274,6 +274,7 @@ type ItemActionContext = {
 ```ts
 type ItemActionValidationResult = {
   actionId: string;
+  itemActionType: ItemActionIntent["itemActionType"];
   isAllowed: boolean;
   resolutionMode: "direct" | "social_request" | "covert" | "effect" | "blocked";
   blockReasonTags: string[];
@@ -285,6 +286,7 @@ type ItemActionValidationResult = {
 ```ts
 type ItemActionExecutionResult = {
   actionId: string;
+  itemActionType: ItemActionIntent["itemActionType"];
   success: boolean;
   emittedEventTypes: string[];
   ownershipPatch?: ItemOwnershipV1;
@@ -296,14 +298,14 @@ type ItemActionExecutionResult = {
 
 1. 解析动作意图，确认目标物品和目标对象
 2. 读取当前占有真相和可接触性上下文
-3. 校验动作类型是否在物品模板 `allowedActions` 中
+3. 校验 `itemActionType` 是否在物品模板 `allowedActions` 中
 4. 校验前置条件：
    - 是否在场或可接触
    - 是否由自己持有
    - 容器是否可访问
    - 目标角色是否在场
    - 当前策略和禁忌是否阻断
-5. 根据动作类型决定结算模式：
+5. 根据 `itemActionType` 决定结算模式：
    - `request` 进入 `social_request`
    - `steal` / `plant_back` 进入 `covert`
    - `use_item` 进入 `effect`
@@ -367,7 +369,7 @@ function executeItemAction(
 
 示例：医生尝试从治安官身上暗中拿走账本。
 
-1. `actionType = steal`
+1. `itemActionType = steal`
 2. 当前账本由 `sheriff` 持有，且 `visibilityToOthers = noticeable`
 3. 动作校验通过，但要求进行隐蔽暴露检查
 4. 若成功，则占有关系改为：
@@ -548,7 +550,32 @@ function resolveCovertItemConsequences(
   - 他人公开持有或可疑藏匿
   - 容器被翻动或秘密证据被拿走
 - `Action Selection` 可产出物品相关动作候选，但必须通过合法性判定
+- NPC 物品动作进入认知主链路时，统一采用 `actionType + itemActionType` 双层表达，而不是把九类动作压扁成泛化 `interact`
 - 调度器只决定谁跑，不直接决定物品占有关系写入
+
+### 6.3.1 物品动作到 NPC 动作模型的映射约定
+
+为兼容 [30-npc-cognition-framework.md](C:/codex/project/AIWesternTown/doc/30-npc-cognition-framework.md) 当前六类粗动作，九类物品动作进入 NPC 候选与执行链路时，采用以下映射：
+
+| 物品动作语义 `itemActionType` | NPC 粗动作 `actionType` | 链路含义 |
+| --- | --- | --- |
+| `pick_up` | `interact` | 从场景拾取物品 |
+| `drop` | `interact` | 将持有物放到场景 |
+| `put_into_container` | `interact` | 把持有物放入容器 |
+| `take_from_container` | `interact` | 从容器取出物品 |
+| `give` | `interact` | 向目标角色交付物品 |
+| `request` | `speak` | 发起针对特定物品的社交申请 |
+| `steal` | `interact` | 发起隐蔽拿取 |
+| `plant_back` | `interact` | 发起隐蔽放回 / 栽赃式放置 |
+| `use_item` | `use_item` | 触发模板登记的物品效果 |
+
+统一约束：
+
+- `ActionCandidate.itemActionType`、`ActionSelectionResult.itemActionType`、`ActionExecutionResult.itemActionType` 必须使用同一命名
+- 对 NPC 而言，`verb` 只是可读标签，不能替代 `itemActionType`
+- 物品候选动作的 `targetObjectIds` 必须包含物品实例 ID
+- `give` 与 `request` 额外要求 `targetActorIds` 指向相关角色
+- `put_into_container`、`take_from_container`、`plant_back` 在需要时额外通过 `targetLocationId` 或容器对象 ID 表达目标落点
 
 ### 6.4 输入结构
 
@@ -581,12 +608,14 @@ type ItemIntegrationOutput = {
 1. 规则层从当前物品真相生成玩家观察输入和 NPC 可观察切片
 2. 玩家深观察可把异常物品和容器状态转成机会
 3. NPC 认知循环把物品事件纳入 `Perceive -> Appraise -> Update Working Memory`
-4. 玩家或 NPC 选择物品动作后，进入统一动作合法性判定与结算
-5. 结算结果写回：
+4. 构造 NPC 物品候选时，先生成 `ActionCandidate.actionType`，再显式附带 `ActionCandidate.itemActionType`
+5. 玩家或 NPC 选择物品动作后，`ActionSelectionResult.itemActionType` 原样传入 `ItemActionIntent.itemActionType`，再进入统一动作合法性判定与结算
+6. `Act` 阶段若发现 `selectionResult.itemActionType` 非空，必须路由到物品动作校验 / 执行器，而不是退化为泛化 `interact`
+7. 结算结果写回：
    - 物品占有关系
    - 世界事件窗口
    - 认知输入与记忆候选
-6. 调度器在下一 tick 再根据事件热度和可见性影响前台、近场、远场
+8. 调度器在下一 tick 再根据事件热度和可见性影响前台、近场、远场
 
 ### 6.7 设计规格和约束
 
@@ -595,6 +624,8 @@ type ItemIntegrationOutput = {
 - NPC 的 `inventoryItemIds` 只代表当前真实持有，不代表其知道所有相关物在哪里
 - 物品事件必须可进入 `recentEventWindow`
 - `ActionCandidate.targetObjectIds` 必须能指向物品实例 ID
+- 物品候选动作不得只使用 `actionType = interact` / `use_item` / `speak` 而缺失 `itemActionType`
+- 实现层不得把 `pick_up`、`give`、`steal`、`plant_back` 等细语义重新塞回自由文本 `verb` 再推断
 
 ### 6.8 与上下游的交互边界
 

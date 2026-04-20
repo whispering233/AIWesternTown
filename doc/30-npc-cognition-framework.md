@@ -107,6 +107,18 @@ NPC 的标准认知循环定义为：
 - 当 NPC 决定“暂不显性动作”时，使用 `executionMode = "hold"` 表达克制或延迟执行
 - `Act` 阶段不得把 `hold` 当作独立动作类型消费
 
+#### 2.5.4 `itemActionType` 的语义约定
+
+第一版中，物品动作细分语义不新增第七类粗粒度 `actionType`，而是在既有粗动作之上追加可选字段 `itemActionType`。
+
+这意味着：
+
+- `actionType` 仍然只允许使用 `speak`、`move`、`observe`、`use_item`、`interact`、`wait`
+- 当动作本质上是九类物品动作之一时，必须用 `itemActionType` 显式标明具体语义
+- `request` 这类物品社交申请沿用 `actionType = "speak"`，但同时携带 `itemActionType = "request"`
+- `pick_up`、`drop`、`give`、`steal`、`plant_back` 等物品转移动作沿用 `actionType = "interact"`，但不得只靠 `verb` 隐式表达
+- `use_item` 作为粗动作保留不变；若它针对第一版九类物品动作中的“使用物品”，仍应同时携带 `itemActionType = "use_item"`
+
 ### 2.6 横向支撑文档
 
 以下文档作为本文档的横向支撑规范使用：
@@ -1666,9 +1678,23 @@ type ActionAffordanceSet = {
 ```
 
 ```ts
+type ItemActionType =
+  | "pick_up"
+  | "drop"
+  | "put_into_container"
+  | "take_from_container"
+  | "give"
+  | "request"
+  | "steal"
+  | "plant_back"
+  | "use_item";
+```
+
+```ts
 type ActionCandidate = {
   actionId: string;
   actionType: "speak" | "move" | "observe" | "use_item" | "interact" | "wait";
+  itemActionType?: ItemActionType;
   verb: string;
   targetActorIds?: string[];
   targetObjectIds?: string[];
@@ -1736,6 +1762,7 @@ type ActionPolicySlice = {
 type ActionSelectionResult = {
   chosenActionId: string;
   actionType: ActionCandidate["actionType"];
+  itemActionType?: ItemActionType;
   verb: string;
   targetActorIds: string[];
   targetObjectIds: string[];
@@ -1758,6 +1785,10 @@ type ActionSelectionResult = {
   - `immediate`：本轮立刻进入 `Act`
   - `queued`：等待短前置条件完成后执行
   - `hold`：当前选择暂不外显执行，通常与 `observe` 或 `wait` 配合使用
+- `itemActionType`
+  - 仅当所选动作属于九类物品动作时填写
+  - 用于把 `pick_up`、`give`、`steal`、`plant_back` 等具体语义稳定传给 `Act` 与调试链路
+  - 与 `actionType` 共同构成“粗动作 + 细语义”的兼容契约
 - `styleTags`
   - 描述执行风格，而不是生成文本
 - `expectedEffectTags`
@@ -1846,6 +1877,7 @@ action_score =
 
 为下游 `Act` 阶段补充执行约束：
 
+- 若候选动作来自物品子系统，则原样保留 `itemActionType`
 - 目标对象
 - 公开度
 - 风格标签
@@ -1870,6 +1902,12 @@ action_score =
 - 不应直接在此层引入复杂组合动作
 - 多步计划应留给更高层规划模块，而不是塞进本阶段
 
+补充约定：
+
+- 九类物品动作不直接扩展 `actionType` 枚举
+- 物品细分语义统一通过 `itemActionType` 追加表达
+- 第一版要求 `itemActionType` 命名在候选、选择和执行阶段保持一致
+
 #### 7.7.2 单动作约束
 
 第一版每轮只选一个主动作，不输出动作链。
@@ -1879,7 +1917,18 @@ action_score =
 - 可以选 `public_deflect`
 - 不能同时选 `public_deflect + move_to_backroom + signal_ally`
 
-#### 7.7.3 保守兜底约束
+#### 7.7.3 物品动作子类型约束
+
+当动作涉及第一版物品系统定义的九类物品动作时：
+
+- `ActionCandidate.itemActionType` 必须填写
+- `ActionSelectionResult.itemActionType` 必须从入选候选原样继承
+- `targetObjectIds` 必须至少包含一个物品实例 ID
+- `request` 必须使用 `actionType = "speak"`
+- `use_item` 必须使用 `actionType = "use_item"`
+- 其余七类物品转移 / 放置 / 取回 / 隐蔽动作统一使用 `actionType = "interact"`
+
+#### 7.7.4 保守兜底约束
 
 若所有显式动作都高风险、低收益或不可执行，必须允许输出保守动作：
 
@@ -1893,7 +1942,7 @@ action_score =
 - 合法的 `actionType`
 - `executionMode = "hold"`
 
-#### 7.7.4 文本与动作分离约束
+#### 7.7.5 文本与动作分离约束
 
 `Action Selection` 不直接产出完整台词、长解释或演出文本。
 
@@ -2079,6 +2128,7 @@ function selectAction(
 
 - `chosenActionId`
 - `actionType`
+- `itemActionType`
 - `verb`
 - `targetActorIds`
 - `targetObjectIds`
@@ -2172,6 +2222,7 @@ type ActionExecutionResult = {
   sourceActionId: string;
   actorId: string;
   actionType: ActionSelectionResult["actionType"];
+  itemActionType?: ItemActionType;
   outcome: "success" | "partial" | "blocked" | "failed";
   outcomeReasonTags: string[];
   consumedTick: number;
@@ -2272,6 +2323,7 @@ type PrivateOutcomePayload = {
 
 - 第一版不在 `Act` 阶段直接写长期记忆
 - 关系变化若需要即时落地，也应以结构化 mutation 表达
+- 若 `itemActionType` 存在，物品占有与容器变化必须通过显式状态变更落地，而不是把具体语义塞进泛化的 `interact` 文本
 
 #### 8.6.4 事件记录生成
 
@@ -2347,7 +2399,15 @@ LLM 不得：
 - 暂不接话
 - 延迟靠近
 
-#### 8.7.4 可见性约束
+#### 8.7.4 物品动作语义继承约束
+
+当 `ActionSelectionResult.itemActionType` 存在时：
+
+- `Act` 必须按该字段路由到对应的物品校验 / 结算逻辑
+- `ActionExecutionResult.itemActionType` 必须原样回传，供调试、反思和事件追踪使用
+- 不允许只保留 `actionType = "interact"` 而丢失具体物品语义
+
+#### 8.7.5 可见性约束
 
 `visibleOutcome` 只描述对外可感知结果。
 

@@ -98,6 +98,8 @@ interface PromptSpec {
 }
 ```
 
+其中 `providerHints.mode` 仅对应 provider 的三类业务调用模式：`classify | summarize | render`。健康检查与 mock fallback 属于 provider 运行保障能力，不由 Prompt Builder 作为第四种 mode 输出。
+
 ### 3.6 处理流程
 
 1. Builder 接收阶段 DTO
