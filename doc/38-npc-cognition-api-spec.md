@@ -74,6 +74,8 @@
 | `activeConcernIds` | `array[string]` | yes | `["wm-2","wm-3"]` | 当前活跃 concern |
 | `actorIds` | `array[string]` | no | `["player","sheriff"]` | 当前场景主要 actor |
 | `goalIds` | `array[string]` | no | `["goal-hide-injury-truth"]` | 当前目标线索 |
+| `identityEvolutionSlice` | `object` | no | `{...}` | 来自 `IdentityEvolutionLayer` 的读取形态 `IdentityEvolutionSlice`；用于把 `reinforcedDriftTags/activeIdentityTensions` 融入 prefetch query |
+| `nextCyclePriming` | `object` | no | `{...}` | 来自长动作深处理的 `NextCyclePrimingPatch` 快照；有效时用于追加 `primingTags/suggestedConcernSeeds` |
 | `maxResults` | `integer` | yes | `3` | 返回条目上限 |
 
 #### 3.1.6 Response Body
@@ -106,7 +108,7 @@
 #### 3.1.9 Examples
 
 - request example  
-  `{"tick":184,"sceneId":"saloon","activeConcernIds":["wm-2"],"actorIds":["player"],"maxResults":3}`
+  `{"tick":184,"sceneId":"saloon","activeConcernIds":["wm-2"],"actorIds":["player"],"nextCyclePriming":{"npcId":"5cb4...","primingTags":["public_secret_risk"],"suggestedConcernSeeds":["player_probe_pattern"],"validUntilTick":185},"maxResults":3}`
 - success response example  
   `{"requester":"cycle_prefetch","hits":[{"memoryId":"mem-player-probe-1","kind":"player_model","summary":"player tends to probe secrets in public","importance":0.82,"confidence":0.76,"relatedActorIds":["player"],"sourceEventIds":["evt-173"],"tags":["public_pressure","secret_risk"],"retrievalReasonTags":["actor_match","tag_match"],"score":0.91}],"readContextPatch":{"prefetchedHits":[{"memoryId":"mem-player-probe-1","kind":"player_model","summary":"player tends to probe secrets in public","importance":0.82,"confidence":0.76,"relatedActorIds":["player"],"sourceEventIds":["evt-173"],"tags":["public_pressure","secret_risk"],"retrievalReasonTags":["actor_match","tag_match"],"score":0.91}]}}`
 - error response example  
@@ -117,6 +119,7 @@
 - `readContextPatch` 是否由服务端返回还是由编排器本地构造，To be confirmed。
 - 若保留 `readContextPatch`，其职责仅是表达对 `TickMemoryReadContext.prefetchedHits` 的写入补丁，不引入独立中间结构。
 - 预取是否允许直接读取 `retrievalSummary` 以外的正文，To be confirmed。
+- `nextCyclePriming` 的消费与清理由编排器和读取层协同保证；成功消费后不应跨多轮重复注入。
 
 ### 3.2 `perceive_stage`
 
@@ -160,6 +163,14 @@
 | `workingMemory` | `object` | yes | `{...}` | `NPCWorkingMemory` |
 | `socialContextSlice` | `object` | yes | `{...}` | 当前局部关系切片 |
 | `retrievedMemorySlice` | `object` | yes | `{...}` | 长期记忆读取侧生成的 `RetrievedMemorySlice` |
+| `partitionAwareInput` | `object` | yes | `{...}` | `PartitionAwarePerceiveInput`；包含 `currentPartitionId`、`partitionSlice`、`recentEventWindow` |
+
+对齐说明：
+
+- `partitionAwareInput` 由分区层在同一轮 `worldTick` 中构造后直接透传到 `perceive_stage`。
+- `partitionAwareInput.currentPartitionId` 表示当前 NPC 分区站位。
+- `partitionAwareInput.partitionSlice` 为分区感知切片（无拓扑场景也应传退化后的单隐式分区切片）。
+- `partitionAwareInput` 内的 `npcId` 与路径参数 `{npcId}` 必须一致。
 
 #### 3.2.6 Response Body
 
@@ -173,7 +184,7 @@
 | Code | Condition | Response meaning |
 | --- | --- | --- |
 | `200` | 成功 | 返回感知结果 |
-| `400` | 缺少世界切片或 working memory | 请求无效 |
+| `400` | 缺少世界切片、working memory 或 `partitionAwareInput` | 请求无效 |
 | `404` | NPC 或场景不存在 | 资源未找到 |
 | `422` | 输入 slice 结构不合法 | 业务校验失败 |
 | `500` | 内部计算错误 | 服务失败 |
@@ -190,7 +201,7 @@
 #### 3.2.9 Examples
 
 - request example  
-  `{"observableWorldSlice":{"sceneId":"saloon"},"workingMemory":{"activeConcernIds":["wm-2"]},"socialContextSlice":{"sceneId":"saloon"},"retrievedMemorySlice":{"memoryItems":[]}}`
+  `{"observableWorldSlice":{"sceneId":"saloon"},"workingMemory":{"activeConcernIds":["wm-2"]},"socialContextSlice":{"sceneId":"saloon"},"retrievedMemorySlice":{"memoryItems":[]},"partitionAwareInput":{"npcId":"5cb4...","currentSceneId":"saloon","currentPartitionId":"bar_counter","partitionSlice":{"playerProjection":{"currentPartitionId":"bar_counter","visiblePartitionOptions":[],"spatialSummaryLines":[]},"playerToNpcRelations":[],"npcToNpcRelations":[]},"recentEventWindow":{"events":[]}}}`
 - success response example  
   `{"perceivedItems":[{"observationId":"obs-1","salience":0.93}],"debugMeta":{"rawCount":5,"finalCount":2}}`
 - error response example  
@@ -241,6 +252,7 @@
 | --- | --- | --- | --- | --- |
 | `perceivedItems` | `array[object]` | yes | `[]` | `PerceivedItem[]` |
 | `identitySlice` | `object` | yes | `{...}` | `NPCIdentitySlice` |
+| `identityEvolutionSlice` | `object` | no | `{...}` | 可选 `IdentityEvolutionSlice`；用于把深处理后的身份张力回流到 `Appraise` |
 | `currentGoalState` | `object` | yes | `{...}` | `CurrentGoalState` |
 | `socialBeliefSlice` | `object` | yes | `{...}` | `SocialBeliefSlice` |
 | `retrievedBeliefSlice` | `object` | yes | `{...}` | `RetrievedBeliefSlice` |
@@ -274,7 +286,7 @@
 #### 3.3.9 Examples
 
 - request example  
-  `{"perceivedItems":[{"observationId":"obs-1"}],"identitySlice":{"npcId":"5cb4..."},"currentGoalState":{"activeGoalIds":["goal-hide"]},"socialBeliefSlice":{"relatedActors":[]},"retrievedBeliefSlice":{"beliefs":[]}}`
+  `{"perceivedItems":[{"observationId":"obs-1"}],"identitySlice":{"npcId":"5cb4..."},"identityEvolutionSlice":{"npcId":"5cb4...","activeIdentityTensions":[],"reinforcedDriftTags":[]},"currentGoalState":{"activeGoalIds":["goal-hide"]},"socialBeliefSlice":{"relatedActors":[]},"retrievedBeliefSlice":{"beliefs":[]}}`
 - success response example  
   `{"appraisalResults":[{"observationId":"obs-1","threat":0.88}],"debugMeta":{"llmRefined":false}}`
 - error response example  
@@ -661,6 +673,7 @@
 | `workingMemory` | `object` | yes | `{...}` | `NPCWorkingMemory` |
 | `eventWindow` | `object` | yes | `{...}` | `ReflectionEventWindow` |
 | `identitySlice` | `object` | yes | `{...}` | `NPCIdentitySlice` |
+| `identityEvolutionSlice` | `object` | no | `{...}` | 可选 `IdentityEvolutionSlice`；用于必要时识别身份张力的持续强化/缓解 |
 | `beliefSlice` | `object` | yes | `{...}` | `ReflectionBeliefSlice` |
 | `policySlice` | `object` | yes | `{...}` | `ReflectionPolicySlice` |
 
@@ -692,7 +705,7 @@
 #### 3.8.9 Examples
 
 - request example  
-  `{"executionResult":{"executionId":"exec-401"},"workingMemory":{"activeConcernIds":["wm-2"]},"eventWindow":{"recentEvents":[]},"identitySlice":{"npcId":"5cb4..."},"beliefSlice":{"actorBeliefs":[],"retrievedMemories":[]},"policySlice":{"significanceThreshold":0.7}}`
+  `{"executionResult":{"executionId":"exec-401"},"workingMemory":{"activeConcernIds":["wm-2"]},"eventWindow":{"recentEvents":[]},"identitySlice":{"npcId":"5cb4..."},"identityEvolutionSlice":{"npcId":"5cb4...","activeIdentityTensions":[],"reinforcedDriftTags":[]},"beliefSlice":{"actorBeliefs":[],"retrievedMemories":[]},"policySlice":{"significanceThreshold":0.7}}`
 - success response example  
   `{"reflectionResult":{"reflectionId":"refl-88","mode":"deep"}}`
 - error response example  
@@ -985,6 +998,11 @@
 | `context` | `object` | yes | `{...}` | `DeepProcessingContext` |
 | `query` | `object` | yes | `{...}` | `DeepRetrievalQuery`；通常由 `buildDeepRetrievalQuery` 规则层构造 |
 
+对齐约束：
+
+- 第一版请求体不接受 `llmRefine` / `allowDeepProcessingLlm` 等 LLM 授权位。
+- 第一版 `run_deep_processing` 不透传独立 `taskKind`、Prompt DTO 或 parser 配置。
+
 #### 3.14.3 Response Body
 
 | Field | Type | Always present | Example | Description |
@@ -1006,12 +1024,16 @@
 
 - 该接口是横向支撑接口，消费 `Reflect` / `Compress` / 长期记忆等既有结果，但不属于常规逐 tick 八阶段。
 - 第一版只把 `runDeepProcessing` 透出为正式内部 API；`buildDeepRetrievalQuery`、`applyIdentityEvolutionPatch` 仍保留为服务内辅助函数。
+- `deepProcessingResult.identityEvolutionPatch` 与 `deepProcessingResult.nextCyclePriming` 的应用结果应分别回流到常规链路的 `appraise_stage/reflect_stage` 与下一轮 `memory_prefetch`。
+- 第一版该接口固定规则路径，不绑定 `doc/50` / `doc/51` 的独立 deep processing LLM 契约项（taskKind/PromptSpec/parser/预算）。
 
 ## 4. Shared Resource Model Notes
 
 - `NPCWorkingMemory`、`PerceivedItem`、`AppraisalResult`、`GoalArbitrationResult`、`ActionSelectionResult`、`ActionExecutionResult`、`ReflectionResult`、`CompressionResult` 等资源模型以 [30-npc-cognition-framework.md](C:/codex/project/AIWesternTown/doc/30-npc-cognition-framework.md) 为准。
 - 长期记忆读取相关 query/result 以 [35-memory-retrieval-and-recall.md](C:/codex/project/AIWesternTown/doc/35-memory-retrieval-and-recall.md) 为准。
 - 长动作与深处理相关资源模型 `NpcLongActionState`、`LongActionStatePatch`、`DeepProcessingTrigger`、`DeepProcessingContext`、`DeepRetrievalQuery`、`DeepProcessingResult`、`IdentityEvolutionSlice`、`IdentityEvolutionPatch`、`NextCyclePrimingPatch` 以 [41-sleep-and-epiphany-long-actions.md](C:/codex/project/AIWesternTown/doc/41-sleep-and-epiphany-long-actions.md) 为准。
+- 常规链路中的回流入口约定：`memory_prefetch` 可接收 `nextCyclePriming`，`appraise_stage/reflect_stage` 可接收 `identityEvolutionSlice`。
+- `run_deep_processing` 在第一版不要求 Prompt Builder registry 中存在专用 taskKind；相关 LLM 契约留待后续版本显式新增。
 - API 文档只规范接口边界，不重复定义所有嵌套字段的完整子结构。
 - 请求与响应 payload 默认复用主文档中的 camelCase 资源字段名；若底层持久化使用 snake_case 数据库列名，应由服务内部完成映射，而不是泄露到 API 契约层。
 - 所有内部接口都必须带 `X-Save-Id`，用于把请求绑定到单个存档或仿真实例上下文。

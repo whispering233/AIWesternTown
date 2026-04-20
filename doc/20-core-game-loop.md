@@ -176,15 +176,16 @@ function buildPlayerStepFrame(
 
 ### 4.3 设计思路
 
-第一版将玩家动作分成五类：
+第一版将玩家动作分成六类：
 
 1. `自由探索动作`
 2. `侦查动作`
 3. `介入动作`
 4. `追逐与转场动作`
 5. `挪位动作（reposition）`
+6. `物品动作`
 
-其中侦查、介入、窗口竞争型转场，以及带观察意图或暴露风险的 `reposition` 默认推动 `worldTick`。
+其中侦查、介入、窗口竞争型转场、带观察意图或暴露风险的 `reposition`，以及通过合法性校验的物品动作默认推动 `worldTick`。
 
 ### 4.4 输入结构
 
@@ -196,8 +197,20 @@ type ParsedPlayerAction = {
     | "investigate"
     | "intervene"
     | "travel"
-    | "reposition";
+    | "reposition"
+    | "item";
   actionType: string;
+  itemActionType?:
+    | "pick_up"
+    | "drop"
+    | "put_into_container"
+    | "take_from_container"
+    | "give"
+    | "request"
+    | "steal"
+    | "plant_back"
+    | "use_item";
+  itemResolutionMode?: "direct" | "social_request" | "covert" | "effect";
   targetSceneId?: string;
   targetPartitionId?: string;
   targetNpcId?: string;
@@ -216,7 +229,11 @@ type PlayerActionExecutionPolicy = {
     | "investigation_cost"
     | "social_intervention"
     | "windowed_travel"
-    | "reposition_cost";
+    | "reposition_cost"
+    | "item_direct_transfer"
+    | "item_social_request"
+    | "item_covert_operation"
+    | "item_effect_trigger";
   resultingRunMode:
     | "free_explore"
     | "focused_dialogue"
@@ -233,6 +250,7 @@ type PlayerActionExecutionPolicy = {
 4. 若是介入动作，则推进 `worldTick` 并优先生成社交响应
 5. 若是转场动作，则依据是否存在追逐/抢时机属性决定是否推进 `worldTick`
 6. 若是 `reposition` 动作，则先更新同场景站位，再依据是否带观察意图或暴露风险决定是否推进 `worldTick`
+7. 若是 `item` 动作，则先复用 [42-item-system-and-interaction.md](C:/codex/project/AIWesternTown/doc/42-item-system-and-interaction.md) 的 `itemActionType -> itemResolutionMode` 分类，再按默认策略推进 `worldTick`
 
 ### 4.7 设计规格和约束
 
@@ -300,11 +318,32 @@ type PlayerActionExecutionPolicy = {
 - 普通挪位默认不推进时间
 - 带明显观察意图或社交暴露风险的挪位推进时间
 
+#### 4.7.6 物品动作
+
+典型包括：
+
+- `pick_up`、`drop`、`put_into_container`、`take_from_container`、`give`
+- `request`
+- `steal`、`plant_back`
+- `use_item`
+
+规则：
+
+- 玩家物品动作统一通过 `ParsedPlayerAction.actionClass = "item"` + `itemActionType` 进入主循环规则层
+- 规则层按 `itemActionType` 派生 `itemResolutionMode = direct | social_request | covert | effect`
+- 通过合法性校验后，以上四类物品动作默认 `consumesTick = true`
+- 默认 `worldTickReason` 映射：
+  - `direct -> item_direct_transfer`
+  - `social_request -> item_social_request`
+  - `covert -> item_covert_operation`
+  - `effect -> item_effect_trigger`
+
 ### 4.8 与上下游的交互边界
 
 - 与 [40-simulation-and-state.md](C:/codex/project/AIWesternTown/doc/40-simulation-and-state.md) 对齐：
   - 玩家命令会进入调度器，但只有 `consumesTick = true` 的动作才进入标准局部步进并推进 `worldTick`
   - 纯 UI 行为不推进时间
+  - 玩家物品动作通过 `PlayerCommandEnvelope.commandType = "item"` 进入调度器，`parsedAction.itemActionType` 与 `parsedAction.itemResolutionMode` 保持原样透传
 - 向下游执行层透出：
   - 是否推进 `worldTick`
   - 当前动作的优先结算语义
@@ -812,4 +851,4 @@ function evaluatePlayerInterrupt(
 - `v0.1`
   - 建立核心玩法循环设计文档第一版
   - 锁定第一版采用“场景驱动探索 + 观察转机会 + 社交卷入升温”的核心玩法循环
-  - 明确玩家动作五分类、步后反馈三层结构和强打断稀有化边界
+  - 明确玩家动作六分类（含玩家物品动作统一入口）、步后反馈三层结构和强打断稀有化边界

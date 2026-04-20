@@ -153,6 +153,13 @@ type NpcLongActionState = {
   - `resolved`：正常完成，允许深处理
   - `aborted`：被打断，不允许深处理
 
+运行态归属说明：
+
+- 活跃 `long_action` 的权威存储归属为 [37-npc-cognition-db-design.md](C:/codex/project/AIWesternTown/doc/37-npc-cognition-db-design.md) 定义的 `ActiveLongActionState`（`save` 作用域 `activeLongActionsByNpc`）
+- 该活跃快照只保留 `entered/holding`
+- `resolved/aborted` 仅作为生命周期终态补丁与日志事实存在；补丁应用后立刻从 `activeLongActionsByNpc` 移除对应 `npc_id`
+- 存档只保留快照时刻仍处于 `entered/holding` 的活跃条目
+
 ### 4.2 深处理触发输入
 
 ```ts
@@ -224,6 +231,7 @@ type IdentityEvolutionSlice = {
 - 其最小存储归属为 [37-npc-cognition-db-design.md](C:/codex/project/AIWesternTown/doc/37-npc-cognition-db-design.md) 中的 `npc_identity_evolution_state`
 - 它按 `npc_id` 一对一保存，会跨 tick、跨常规认知循环持续生效，并随存档快照保留
 - 它不是基础身份档案的一部分，不能反向覆盖 `npc_identity_profile`
+- 常规认知链读取时统一使用 `IdentityEvolutionSlice`；文中 `IdentityEvolutionLayer` 仅用于强调其持久化归属
 
 ```ts
 type IdentityTensionItem = {
@@ -348,6 +356,7 @@ type NextCyclePrimingPatch = {
 - 这样深处理结果能在之后被“想起”，而不是立即粗暴改写短时焦点
 - `NextCyclePrimingPatch` 第一版不单独建数据库表，而是写入 save 作用域内、以 `npcId` 为键的短期运行态快照
 - 该快照只保留到 `validUntilTick`，并在下一次成功消费后立即清除；若存档发生在有效期内则随运行态快照一起保存
+- 运行态消费时可简称为 `NextCyclePriming`，其结构仍沿用 `NextCyclePrimingPatch`
 
 ### 5.5 中断丢弃输出
 
@@ -370,6 +379,7 @@ type DeepProcessingAbortResult = {
 - 记录 `actionKind`
 - 记录 `enteredAtTick`
 - 写入 `sourceTriggerTags`
+- 在 `activeLongActionsByNpc` 中 upsert 当前 `npc_id` 的活跃条目
 
 建议进入条件：
 
@@ -392,6 +402,7 @@ type DeepProcessingAbortResult = {
 - 将其 `availability` 标记为 `busy`
 - 将其调度优先级降到低位
 - 允许外部高优先级事件直接把它拉出长动作
+- 调度侧通过 [40-simulation-and-state.md](C:/codex/project/AIWesternTown/doc/40-simulation-and-state.md) 的 `activeLongActions` 输入读取该活跃条目
 
 ### 6.3 长动作打断
 
@@ -400,7 +411,8 @@ type DeepProcessingAbortResult = {
 1. 当前长动作状态改为 `aborted`
 2. 记录 `abortReasonTags`
 3. 不生成 `DeepProcessingTrigger`
-4. 若后续仍要进入睡眠/顿悟，必须重新创建新的长动作
+4. 在同一结算拍通过 `removeNpcIds` 从 `activeLongActionsByNpc` 移除该 `npc_id`
+5. 若后续仍要进入睡眠/顿悟，必须重新创建新的长动作
 
 建议打断条件包括：
 
@@ -415,6 +427,7 @@ type DeepProcessingAbortResult = {
 1. 当前长动作状态改为 `resolved`
 2. 创建唯一的 `DeepProcessingTrigger`
 3. 立即进入一次深处理
+4. 深处理门控和结算完成后，在同一结算拍通过 `removeNpcIds` 从 `activeLongActionsByNpc` 移除该 `npc_id`
 
 第一版建议：
 
@@ -515,13 +528,30 @@ type DeepInsight = {
 
 存储上，它只属于短期运行态快照，不进入正式关系表；默认生命周期为“生成后到下一轮成功消费或 `validUntilTick` 到期”为止。
 
-### 6.11 结束与清理
+### 6.11 回流到常规认知链
+
+深处理写回完成后，常规认知链按以下入口读取：
+
+1. `Cycle Prefetch`
+   - 在下一轮 `tick_start` 读取有效 `NextCyclePrimingPatch`
+   - 把 `primingTags / suggestedConcernSeeds` 合并进 `build_prefetch_query`
+   - 预取成功后消费并清除该 priming 快照
+2. `Appraise`
+   - 读取已应用补丁后的 `IdentityEvolutionSlice`
+   - 将 `activeIdentityTensions / reinforcedDriftTags / currentSelfNarrative` 作为意义判断的附加上下文
+3. `Reflect`（必要时）
+   - 在深度反思触发判定或结果解释阶段读取同一 `IdentityEvolutionSlice`
+   - 用于识别“既有身份张力是否被再次强化或缓解”
+
+### 6.12 结束与清理
 
 处理结束后：
 
-- `resolved` 长动作可从活跃长动作表中移除
-- `aborted` 长动作只保留必要日志
+- `resolved` 与 `aborted` 都必须从 `activeLongActionsByNpc` 立即移除，不在活跃快照常驻
+- `resolved` 仅保留 `DeepProcessingTrigger` 与必要结算日志
+- `aborted` 只保留必要日志
 - 本轮深处理上下文销毁，不跨任务保留
+- 若在清理完成后触发存档，存档快照中不应再包含本次终态长动作
 
 ## 7. 设计规格和约束
 
@@ -530,6 +560,7 @@ type DeepInsight = {
 - 单个 NPC 同时最多只能有 `1` 个活跃内部长动作
 - 同一个长动作只能经历一次 `resolved` 或 `aborted`
 - `resolved` 与 `aborted` 互斥
+- `activeLongActionsByNpc` 只保存 `entered/holding`；终态只保留事件/触发留痕
 
 ### 7.2 打断约束
 
@@ -600,14 +631,13 @@ type DeepInsight = {
 - 可写字段白名单控制
 - 深处理预算与结果上限控制
 
-### 8.2 第一版 LLM 可参与
+### 8.2 第一版 deep processing 不走独立 LLM 契约
 
-- 基于检索结果生成有限 `DeepInsight` 摘要
-- 生成 `currentSelfNarrative` 的自然语言版本
-- 生成身份张力摘要文案
-- 对检索摘要做自然语言提炼
+- `runDeepProcessing` 第一版固定为规则整合路径，不走 `optional_llm_integrate`
+- 第一版不新增 deep processing 专用 `taskKind`、Prompt DTO、parser、预算条目
+- 若后续要引入 deep processing 的 LLM 调用，必须先在 [50-llm-integration.md](C:/codex/project/AIWesternTown/doc/50-llm-integration.md) 与 [51-prompt-builder-contract.md](C:/codex/project/AIWesternTown/doc/51-prompt-builder-contract.md) 补齐契约后再放开
 
-### 8.3 第一版 LLM 不得直接决定
+### 8.3 第一版深处理不得直接决定
 
 - 长动作是否被打断
 - 打断后是否保留半成品
@@ -621,7 +651,7 @@ type DeepInsight = {
 resolve_long_action
 -> build_deep_query
 -> retrieve_memories_and_tensions
--> optional_llm_integrate
+-> rule_integrate_and_generate_insights
 -> rule_validate_writable_fields
 -> apply_memory_and_identity_patches
 ```
@@ -632,7 +662,7 @@ resolve_long_action
 
 本设计读取：
 
-- 长动作状态
+- 长动作活跃快照（`activeLongActionsByNpc`，仅 `entered/holding`）
 - 最近事件窗口
 - 最近 `Reflect` 结果
 - 最近 `Compress` 结果
@@ -674,6 +704,11 @@ resolve_long_action
 - `Cycle Prefetch`
 - `Appraise`
 - `Reflect`
+
+具体入口约定：
+
+- `Cycle Prefetch` 读取并消费短期 `NextCyclePrimingPatch`
+- `Appraise / Reflect` 读取持久化 `IdentityEvolutionSlice`
 
 ## 10. 透出的接口设计
 
@@ -743,8 +778,8 @@ function applyIdentityEvolutionPatch(
 
 ### 11.1 长动作生命周期
 
-- 当前活跃长动作列表
-- 每个长动作的 `entered/holding/resolved/aborted` 状态
+- 当前活跃长动作列表（仅 `entered/holding`）
+- 当前 tick 发生的 `resolved/aborted` 终态补丁与移除记录
 - 打断原因
 
 ### 11.2 深处理触发门控

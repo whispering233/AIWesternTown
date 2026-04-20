@@ -44,6 +44,7 @@
 - 保持读取成本可控，避免每个阶段都扫全量长期记忆
 - 保证同一 tick 内的读取有状态、可复用、可调试
 - 为后续更复杂的向量检索或混合检索预留接口
+- 让长动作深处理产出的 `IdentityEvolutionSlice` 与 `NextCyclePrimingPatch` 能回流到常规读取链路
 
 ## 4. 设计原则
 
@@ -64,6 +65,7 @@
 1. `Cycle Prefetch`
    - 每轮认知循环开始时进行一次轻量预取
    - 提供“背景激活集”
+   - 可吸收 `NextCyclePrimingPatch` 的短期 priming 线索
 2. `Stage Retrieval`
    - 在允许的阶段按需追加检索
    - 提供“被当前刺激或结果触发想起的记忆”
@@ -134,6 +136,14 @@
 - 不追求覆盖所有相关长期记忆
 - 以低成本规则召回为主
 
+#### 6.1.4 长动作回流线索消费
+
+`Cycle Prefetch` 在 `tick_start` 可额外读取有效 `NextCyclePrimingPatch`：
+
+- 将 `primingTags` 追加到预取 query 的 `tags / cueTexts`
+- 将 `suggestedConcernSeeds` 作为弱提示追加到 `cueTexts`
+- 预取成功后消费该 priming 快照，避免跨多轮重复污染
+
 ### 6.2 `Perceive` 读取
 
 #### 6.2.1 设计目标
@@ -157,6 +167,7 @@
 - 比 `Perceive` 更语义化
 - 更依赖 goal、identity、social belief 相关命中
 - 结果集仍需保持小规模
+- 可读取 `IdentityEvolutionSlice` 的 `activeIdentityTensions / reinforcedDriftTags` 作为附加 cue
 
 ### 6.4 `Reflect` 读取
 
@@ -169,6 +180,7 @@
 - 允许最高比例的模式检索与语义相似
 - 允许回看最近相关长期记忆和既有判断
 - 不追求低延迟极限，但仍需限制结果规模
+- 必要时可叠加 `IdentityEvolutionSlice`，识别“身份张力重复强化/缓解”模式
 
 ## 7. 读取侧组件设计
 
@@ -205,6 +217,7 @@
 - 把阶段上下文转换成标准化 `MemoryRetrievalQuery`
 - 决定该阶段允许检索的 memory kind
 - 决定返回上限和 cue 结构
+- 在 `cycle_prefetch / appraise / reflect` 的 query 构造中吸收回流上下文（`NextCyclePrimingPatch`、`IdentityEvolutionSlice`）
 
 `deep_process` 不属于 `Stage Query Builder` 覆盖范围；它作为长动作结算时的特殊 requester，可单独构造 query，但仍进入同一个 `Memory Retrieval Engine`。
 
@@ -275,6 +288,15 @@
 - 避免同一记忆在单轮内反复污染多个阶段
 - 为调试提供命中轨迹
 
+### 8.5 `RetrievalCarryoverContext`
+
+用于承接长动作深处理回流到常规链路的读取输入：
+
+- `nextCyclePriming`
+  - 在 `tick_start` 提供给 `Cycle Prefetch`
+- `identityEvolution`
+  - 在 `Appraise / Reflect` 阶段提供身份演化线索
+
 ## 9. 输入结构
 
 ### 9.1 `MemoryRetrievalQuery`
@@ -304,8 +326,11 @@ type MemoryRetrievalQuery = {
   - `deep_process` 为长动作结算深处理专用 requester，不进入常规阶段权限与 `TickMemoryReadContext`
 - `cueTexts`
   - 当前要“想起什么”的语义线索
+  - `cycle_prefetch` 可包含 `NextCyclePrimingPatch.primingTags / suggestedConcernSeeds`
 - `memoryKinds`
   - 当前阶段允许检索的长期记忆类别
+- `tags`
+  - `appraise / reflect` 可追加 `IdentityEvolutionSlice.reinforcedDriftTags` 作为检索标签
 - `maxResults`
   - 强制限流上限
 
@@ -410,6 +435,21 @@ type LongTermMemoryItem = {
 
 - 本定义与 [30-npc-cognition-framework.md](C:/codex/project/AIWesternTown/doc/30-npc-cognition-framework.md) 中 `Compress` 阶段保持一致
 - 第一版不在本文件内再次扩展长期记忆写入字段，避免读取侧与写入侧 schema 漂移
+
+### 9.9 `RetrievalCarryoverContext`
+
+```ts
+type RetrievalCarryoverContext = {
+  identityEvolution?: IdentityEvolutionSlice;
+  nextCyclePriming?: NextCyclePrimingPatch;
+};
+```
+
+说明：
+
+- `identityEvolution` 与 [41-sleep-and-epiphany-long-actions.md](C:/codex/project/AIWesternTown/doc/41-sleep-and-epiphany-long-actions.md) 的 `IdentityEvolutionSlice` 同形
+- `nextCyclePriming` 与同文档 `NextCyclePrimingPatch` 同形
+- 该上下文由编排器在常规链路入口装配，不属于长期记忆写入职责
 
 ## 10. 阶段适配输出结构
 
@@ -563,9 +603,11 @@ retrieval_score =
 
 ```text
 tick_start
+-> load RetrievalCarryoverContext.nextCyclePriming (if valid)
 -> build_prefetch_query()
 -> prefetchMemories()
 -> write TickMemoryReadContext.prefetchedHits
+-> clear consumed nextCyclePriming
 ```
 
 ### 13.2 `Perceive`
@@ -584,6 +626,7 @@ perceive
 appraise
 -> read prefetchedHits
 -> read stageCache
+-> read RetrievalCarryoverContext.identityEvolution
 -> if not enough, build_appraise_query()
 -> retrieveMemoriesForStage()
 -> adaptRetrievalForAppraise()
@@ -595,6 +638,7 @@ appraise
 reflect
 -> read prefetchedHits
 -> read stageCache
+-> optionally read RetrievalCarryoverContext.identityEvolution
 -> if needed, build_reflect_query()
 -> retrieveMemoriesForStage()
 -> adaptRetrievalForReflect()
@@ -719,6 +763,7 @@ type RetrievalPromotion = {
 - 长期记忆存储切片
 - 压缩阶段生成的 `retrievalSummary`
 - 当前 tick 的读取上下文
+- 长动作回流输入（`IdentityEvolutionSlice`、有效 `NextCyclePrimingPatch`）
 - 阶段自己的 query
 
 ### 16.2 下游边界

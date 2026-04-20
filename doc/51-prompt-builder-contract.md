@@ -99,6 +99,7 @@ interface PromptSpec {
 ```
 
 其中 `providerHints.mode` 仅对应 provider 的三类业务调用模式：`classify | summarize | render`。健康检查与 mock fallback 属于 provider 运行保障能力，不由 Prompt Builder 作为第四种 mode 输出。
+第一版 `TaskKind` 不包含长动作 deep processing 专用项（如 `deep_processing_integrate`）；该链路不进入 Prompt Builder。
 
 ### 3.6 处理流程
 
@@ -174,6 +175,8 @@ DTO 按 taskKind 分族：
 - `VisibleOutcomeRenderPromptInput`
 - `DeepReflectPromptInput`
 - `CompressionGeneralizePromptInput`
+
+第一版不定义 `DeepProcessingPromptInput`（或同义 DTO）。
 
 ### 4.4 输入结构
 
@@ -495,6 +498,7 @@ type BuilderRegistry = Record<TaskKind, BuilderRegistryEntry>;
 - `action_style_refine`：示例关闭
 - `goal_tiebreak`：示例关闭
 - `deep_reflect`：示例关闭
+- 不得注册 `deep_processing_integrate`（或同义 taskKind）
 
 ### 7.8 与上下游的交互边界
 

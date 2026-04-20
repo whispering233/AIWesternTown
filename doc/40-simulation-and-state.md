@@ -138,6 +138,7 @@ type WorldSimulationInput = {
   playerContext: PlayerContextSlice;
   sceneGraph: SceneGraphSlice;
   npcScheduleStates: NPCScheduleState[];
+  activeLongActions: ActiveLongActionSnapshot[];
   recentEventWindow: WorldEventWindow;
   activeDialogueThread?: DialogueThreadState;
   pendingInterrupt?: PendingInterruptState;
@@ -157,6 +158,8 @@ type WorldSimulationInput = {
   - 场景邻接与距离层级信息
 - `npcScheduleStates`
   - 当前所有核心 NPC 的调度快照
+- `activeLongActions`
+  - 当前活跃内部 `long_action` 快照（`save` 作用域 `activeLongActionsByNpc` 展平结果）
 - `recentEventWindow`
   - 最近若干 tick 的结构化事件窗口
 - `activeDialogueThread`
@@ -171,7 +174,7 @@ type WorldSimulationInput = {
 ```ts
 type PlayerCommandEnvelope = {
   commandId: string;
-  commandType: "dialogue" | "move" | "observe" | "social" | "system";
+  commandType: "dialogue" | "move" | "observe" | "social" | "item" | "system";
   parsedAction: ParsedPlayerAction;
   issuedAtTick: number;
   consumesTick: boolean;
@@ -184,6 +187,7 @@ type PlayerCommandEnvelope = {
 - 阅读、回看、日志与纯 UI 行为默认不进入标准局部步进
 - 自由探索、普通本地移动、普通 `reposition` 默认可进入调度器但 `consumesTick = false`
 - 侦查、介入、窗口竞争转场，以及带明显观察意图或暴露风险的 `reposition` 默认 `consumesTick = true`
+- 玩家物品动作统一使用 `commandType = item`，并通过 `parsedAction.itemActionType + parsedAction.itemResolutionMode` 透传；通过合法性校验后默认 `consumesTick = true`
 
 ### 4.3 玩家上下文输入
 
@@ -238,6 +242,7 @@ type NPCScheduleState = {
 
 - `cognitiveHeat` 由现有工作记忆状态映射得到
 - `scheduleHeat` 由场景分层、事件热度和对话绑定共同形成
+- `availability` 应与 `activeLongActions` 联合判定；命中活跃 `long_action` 的 NPC 默认视为 `busy`，仅在强打断命中后回到前台竞争
 
 ### 4.6 事件窗口输入
 
@@ -295,6 +300,25 @@ type FarFieldBacklogItem = {
   mustResolveByTick?: number;
 };
 ```
+
+### 4.10 活跃长动作快照输入
+
+```ts
+type ActiveLongActionSnapshot = {
+  npcId: string;
+  actionId: string;
+  actionKind: "sleep" | "epiphany";
+  status: "entered" | "holding";
+  enteredAtTick: number;
+  expectedResolveAtTick?: number;
+  boundSceneId?: string;
+};
+```
+
+读取约束：
+
+- 该输入来自 [37-npc-cognition-db-design.md](C:/codex/project/AIWesternTown/doc/37-npc-cognition-db-design.md) 定义的 `ActiveLongActionState` 运行态契约（`activeLongActionsByNpc`）
+- 活跃快照只保留 `entered/holding`，`resolved/aborted` 不在该输入常驻
 
 ## 5. 输出结构
 
@@ -385,9 +409,17 @@ type SimulationStatePatchSet = {
   nextDialogueThread?: DialogueThreadState;
   nextPendingInterrupt?: PendingInterruptState;
   npcSchedulePatches: NPCSchedulePatch[];
+  activeLongActionPatch: ActiveLongActionRuntimePatch;
   nearFieldQueuePatch: NearFieldQueuePatch;
   farFieldBacklogPatch: FarFieldBacklogPatch;
   appendedEventIds: string[];
+};
+```
+
+```ts
+type ActiveLongActionRuntimePatch = {
+  upserts: ActiveLongActionSnapshot[];
+  removeNpcIds: string[];
 };
 ```
 
@@ -411,8 +443,9 @@ type SimulationDebugSummary = {
 ### 6.1 接收玩家动作并决定是否消耗 tick
 
 1. 调度器接收 `PlayerCommandEnvelope`
-2. 若 `consumesTick = false`，则不推进世界
-3. 若 `consumesTick = true`，则进入标准局部步进
+2. 若 `commandType = item`，仍走与其他玩家动作同一入口，只是额外读取 `parsedAction.itemActionType`
+3. 若 `consumesTick = false`，则不推进世界
+4. 若 `consumesTick = true`，则进入标准局部步进
 
 ### 6.2 推进全局 tick 并确定运行模式
 
@@ -545,6 +578,9 @@ type SimulationDebugSummary = {
 - 玩家命令会先进入调度器；只有 `consumesTick = true` 的动作才推进 `worldTick`
 - 玩家阅读文本不推进时间
 - NPC 连续文本表现不自动额外消耗 tick，除非中间产生新的结构化动作或事件
+- 玩家物品动作默认遵循：
+  - `itemResolutionMode = direct | social_request | covert | effect` 且通过合法性校验时，`consumesTick = true`
+  - 校验失败或纯 UI 库存查看，不推进 `worldTick`
 
 ### 7.2 场景泡泡约束
 
@@ -638,6 +674,7 @@ type SimulationDebugSummary = {
 - `dialogueThread`
 - `interruptState`
 - `npcScheduleState`
+- `activeLongActionsByNpc`
 - `eventWindow`
 - `playerActionLedger`
 
@@ -651,6 +688,13 @@ type SimulationDebugSummary = {
 - 世界事实权威状态
 
 这些仍属于各自的权威存储和执行阶段。
+
+活跃内部 `long_action` 运行态权威归属为 `save` 作用域快照 `activeLongActionsByNpc`：
+
+- 调度器上游读取其活跃快照（只含 `entered/holding`）
+- 调度器/生命周期编排仅通过 `activeLongActionPatch.upserts/removeNpcIds` 写回
+- `resolved/aborted` 只作为终态补丁与日志事实存在，补丁应用后即从活跃快照移除
+- 存档仅保留快照时刻仍活跃（`entered/holding`）的条目
 
 ### 7.13 横向支撑文档约束
 
@@ -713,6 +757,7 @@ LLM 不得直接决定：
 - 事件窗口
 - 对话线程状态
 - NPC 调度状态快照
+- 活跃长动作快照（`activeLongActionsByNpc`）
 
 调度器不直接重跑：
 

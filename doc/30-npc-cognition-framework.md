@@ -142,6 +142,21 @@ NPC 的标准认知循环定义为：
 - 横向支撑文档负责存储、读取、流程图和服务接口等侧向专题
 - 若主链路字段与支撑文档出现冲突，以本文档中的资源模型命名为准，再回补支撑文档
 
+### 2.7 长动作深处理回流约定
+
+为对齐 [41-sleep-and-epiphany-long-actions.md](C:/codex/project/AIWesternTown/doc/41-sleep-and-epiphany-long-actions.md) 的深处理输出，常规认知链路采用以下最小回流路径：
+
+- `IdentityEvolutionPatch`
+  - 先应用到持久化 `IdentityEvolutionLayer`
+  - 常规阶段读取形态统一为 `IdentityEvolutionSlice`
+- `NextCyclePrimingPatch`
+  - 以短期运行态快照形式进入下一轮 `tick_start`
+  - 由 `Cycle Prefetch` 消费并清除
+- 常规阶段消费入口
+  - `Appraise` 直接读取 `IdentityEvolutionSlice`
+  - `Reflect` 在必要时读取 `IdentityEvolutionSlice`
+  - `Appraise / Reflect` 也可间接消费由 `Cycle Prefetch` priming 命中的记忆结果
+
 ## 3. Perceive 阶段
 
 ### 3.1 设计目标
@@ -269,6 +284,29 @@ type RetrievedMemorySlice = {
 - 最近访问时间
 - 关联 actor / clue / event
 
+#### 3.4.5 `PartitionAwarePerceiveInput`
+
+为与 [25-scene-partition-and-visibility.md](C:/codex/project/AIWesternTown/doc/25-scene-partition-and-visibility.md) 的分区接入约定对齐，`Perceive` 在主链路额外读取一个分区感知补充输入：
+
+```ts
+type PartitionAwarePerceiveInput = {
+  npcId: string;
+  currentSceneId: string;
+  currentPartitionId?: string;
+  partitionSlice: PartitionPerceptionSlice;
+  recentEventWindow: WorldEventWindow;
+};
+```
+
+用途：
+
+- `currentPartitionId`
+  - 当前 NPC 所在分区；缺省时按场景退化分区处理
+- `partitionSlice`
+  - 提供 `visual / audio / notice` 关系切片，约束可见、可听与暴露判断
+- `recentEventWindow`
+  - 与分区切片同轮对齐的近期事件窗口，避免“跨轮错配”
+
 ### 3.5 输出结构
 
 #### 3.5.1 `PerceivedItem`
@@ -301,7 +339,7 @@ type PerceivedItem = {
 
 #### 3.6.1 Observe
 
-读取 `ObservableWorldSlice`，形成原始观察候选。
+先读取 `ObservableWorldSlice` 与 `PartitionAwarePerceiveInput`，再形成原始观察候选。
 
 这一阶段不做心理解释，只做客观采样。
 
@@ -400,6 +438,7 @@ salience =
 `Perceive` 只读取：
 
 - 规则层可观察输入
+- 分区补充输入中的 `currentPartitionId` 与 `partitionSlice`
 - 少量工作记忆
 - 局部关系图
 - 少量检索记忆
@@ -422,7 +461,8 @@ function perceive(
   observable: ObservableWorldSlice,
   workingMemory: NPCWorkingMemory,
   social: SocialContextSlice,
-  retrievedMemory: RetrievedMemorySlice
+  retrievedMemory: RetrievedMemorySlice,
+  partitionAwareInput: PartitionAwarePerceiveInput
 ): PerceivedItem[]
 ```
 
@@ -591,6 +631,7 @@ type RetrievedBeliefSlice = {
     summary: string;
     kind: "episodic" | "social" | "player_model" | "clue";
     importance: number;
+    retrievalReasonTags?: string[];
   }[];
 };
 ```
@@ -599,6 +640,35 @@ type RetrievedBeliefSlice = {
 
 - 判断当前输入是否是重复模式、危险信号或已知线索延续
 - 第一版中 `RetrievedBeliefSlice.beliefs.kind` 与长期记忆 `LongTermMemoryItem.kind` 保持一致
+- 当命中来源于 `Cycle Prefetch` 的 `NextCyclePrimingPatch` 时，可通过 `retrievalReasonTags` 透传 `next_cycle_priming` 等命中理由
+
+#### 4.4.6 `IdentityEvolutionSlice`
+
+```ts
+type IdentityEvolutionSlice = {
+  npcId: string;
+  currentSelfNarrative?: string;
+  activeIdentityTensions: IdentityTensionItem[];
+  reinforcedDriftTags: string[];
+  lastDeepProcessedAtTick?: number;
+};
+
+type IdentityTensionItem = {
+  tensionId: string;
+  kind: "loyalty" | "self_image" | "fear" | "obsession" | "attachment" | "moral_strain";
+  summary: string;
+  targetActorIds: string[];
+  intensity: number;
+  direction: "rising" | "stable" | "fading";
+  introducedAtTick: number;
+  lastUpdatedAtTick: number;
+};
+```
+
+用途：
+
+- 为意义判断提供“近期自我叙事与身份张力”上下文
+- 让 `Appraise` 能识别同一刺激是否正在持续强化某类身份张力
 
 ### 4.5 输出结构
 
@@ -644,6 +714,11 @@ type AppraisalResult = {
 - 是否违背预期
 - 是否带来明显情绪冲击
 - 是否暗示某种他人意图
+
+若存在 `IdentityEvolutionSlice`，应额外检查：
+
+- 当前刺激是否命中 `activeIdentityTensions`
+- 是否放大或缓解 `reinforcedDriftTags` 指向的风险/机会解释
 
 #### 4.6.3 Affected Goal Mapping
 
@@ -717,6 +792,7 @@ rule_appraise -> optional_llm_refine -> merged_appraisal_result
 
 - `PerceivedItem[]`
 - 身份摘要
+- `IdentityEvolutionSlice`（若存在）
 - 当前目标状态
 - 局部社交判断
 - 少量命中记忆
@@ -738,6 +814,7 @@ rule_appraise -> optional_llm_refine -> merged_appraisal_result
 function appraiseByRules(
   perceived: PerceivedItem,
   identity: NPCIdentitySlice,
+  identityEvolution: IdentityEvolutionSlice | undefined,
   goals: CurrentGoalState,
   social: SocialBeliefSlice,
   beliefs: RetrievedBeliefSlice
@@ -2699,6 +2776,7 @@ type ReflectionBeliefSlice = {
     kind: "episodic" | "social" | "player_model" | "clue";
     summary: string;
     importance: number;
+    retrievalReasonTags?: string[];
   }[];
 };
 ```
@@ -2708,6 +2786,7 @@ type ReflectionBeliefSlice = {
 - 判断本次结果是否改变既有看法
 - 支持“重复模式”与“意外偏差”识别
 - 其中 `retrievedMemories` 子字段由长期记忆读取机制提供，`actorBeliefs` 由 social belief 状态层提供
+- `retrievedMemories.retrievalReasonTags` 可携带 `next_cycle_priming` 等来源标签，帮助识别“长动作后延续关注”
 
 #### 9.4.6 `ReflectionPolicySlice`
 
@@ -2726,6 +2805,16 @@ type ReflectionPolicySlice = {
 
 - 控制哪些结果需要深度反思
 - 避免所有动作都进入高成本解释
+
+#### 9.4.7 `IdentityEvolutionSlice`（可选）
+
+用于在必要时补充“近期身份张力是否被再次强化/缓解”的判断上下文。
+
+重点读取：
+
+- `currentSelfNarrative`
+- `activeIdentityTensions`
+- `reinforcedDriftTags`
 
 ### 9.5 输出结构
 
@@ -2816,6 +2905,7 @@ type ReflectionMemoryCandidate = {
 - `outcome` 为 `partial`、`blocked` 或 `failed`
 - 命中秘密风险、关系突变、玩家异常行为等高价值标签
 - 与近期事件组合后显示出重复模式或策略失效
+- 命中 `IdentityEvolutionSlice.activeIdentityTensions` 且张力方向持续 `rising`
 
 第一版建议显式触发规则：
 
@@ -2825,6 +2915,7 @@ deep_reflect =
   OR outcome in {partial, blocked, failed}
   OR significance >= threshold
   OR high_value_tag_hit
+  OR identity_tension_escalated
 ```
 
 #### 9.6.3 结果意义评估
@@ -2953,6 +3044,7 @@ rule_light_reflect -> optional_deep_reflect_by_llm -> merged_reflection_result
 - `NPCWorkingMemory`
 - `ReflectionEventWindow`
 - `NPCIdentitySlice`
+- `IdentityEvolutionSlice`（必要时）
 - `ReflectionBeliefSlice`
 - `ReflectionPolicySlice`
 
@@ -2987,6 +3079,7 @@ function reflect(
   workingMemory: NPCWorkingMemory,
   eventWindow: ReflectionEventWindow,
   identity: NPCIdentitySlice,
+  identityEvolution: IdentityEvolutionSlice | undefined,
   beliefs: ReflectionBeliefSlice,
   policy: ReflectionPolicySlice
 ): ReflectionResult

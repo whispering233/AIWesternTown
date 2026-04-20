@@ -6,7 +6,7 @@
 | --- | --- |
 | Document title | `AIWesternTown NPC cognition data model` |
 | Business goal | 为 NPC 认知循环提供可持久化、可检索、可回放的数据模型，支撑身份、目标、工作记忆、社交信念、长期记忆、身份演化与认知事件日志。 |
-| Scope | 覆盖 `npc_identity_profile`、`npc_goal_definition`、`npc_social_belief_edge`、`npc_working_memory_item`、`npc_long_term_memory_item`、`npc_memory_retrieval_summary`、`npc_cognition_event_log`、`npc_identity_evolution_state` 八个正式存储对象，以及 `NextCyclePriming` 的短期运行态快照契约。 |
+| Scope | 覆盖 `npc_identity_profile`、`npc_goal_definition`、`npc_social_belief_edge`、`npc_working_memory_item`、`npc_long_term_memory_item`、`npc_memory_retrieval_summary`、`npc_cognition_event_log`、`npc_identity_evolution_state` 八个正式存储对象，以及 `ActiveLongActionState`、`NextCyclePriming` 两个运行态快照契约。 |
 | Non-goals | 不覆盖世界地图、玩家主存档、对话内容全文存储、向量检索基础设施、tick 内临时 `TickMemoryReadContext` 内存结构。 |
 | Related systems | [30-npc-cognition-framework.md](C:/codex/project/AIWesternTown/doc/30-npc-cognition-framework.md), [35-memory-retrieval-and-recall.md](C:/codex/project/AIWesternTown/doc/35-memory-retrieval-and-recall.md), world simulation state store, internal cognition orchestrator |
 
@@ -34,6 +34,7 @@
 
 | Contract | Storage home | Lifecycle | Relation |
 | --- | --- | --- | --- |
+| `ActiveLongActionState` | `save` 作用域运行态快照存储中的 `activeLongActionsByNpc`（以 `npc_id` 为键）；不单独建表 | 进入长动作时创建，活跃期只保留 `entered/holding`；一旦进入 `resolved/aborted`，在同一结算拍完成终态补丁后移除对应 `npc_id` 键；仅在仍处于活跃期时随存档快照保留 | 供世界调度输入读取活跃长动作可调度性，供长动作生命周期结算执行移除 |
 | `NextCyclePriming` | save 作用域内的 NPC 运行态快照存储，以 `npc_id` 为键；不单独建表 | 短期运行态；仅在 `valid_until_tick` 前有效，被下一次成功消费后清除；若存档发生在有效期内则随运行态快照一起保存 | 由长动作深处理生成，供下一轮 `Cycle Prefetch` / `Appraise` 预激活 |
 
 ## 3. Single Table Design
@@ -541,6 +542,7 @@
 - `Update Working Memory` 对同一 NPC 的短时焦点更新建议使用单事务，避免 active/background 状态半更新。
 - `Reflect` 产生的 belief update hint 不应直接在反思事务中改社交边，应交由统一状态更新器处理。
 - 长动作深处理若同时产出长期记忆写回与 `IdentityEvolutionPatch`，应把 `npc_long_term_memory_item`、`npc_memory_retrieval_summary`、`npc_identity_evolution_state` 放在同一结算事务内提交。
+- `ActiveLongActionState` 通过 `activeLongActionsByNpc` 运行态快照更新：`entered/holding` 走 upsert，`resolved/aborted` 在终态补丁提交后立刻 remove；终态留痕依赖 trigger 与日志，不在活跃快照常驻。
 - `NextCyclePriming` 属于短期运行态快照，可在结算成功后独立写入；重复写入应以更晚的 `valid_until_tick` 覆盖旧值。
 - `npc_cognition_event_log` 允许 eventual consistency，失败时不应阻断主仿真流程，但应记录告警。
 - 当前文档默认一套运行态表只服务一个存档上下文；上层接口传入的 `X-Save-Id` 在这一部署下应先被服务端映射到唯一运行态库或实例，再落到不含 `save_id` 的表设计。
@@ -558,5 +560,5 @@
 
 ## 7. Appendix
 
-- 当前文档基于现有认知设计文档抽取稳定实体；`NextCyclePriming` 例外地以短期运行态快照契约记录，因为它跨 tick 生效但不值得在第一版单独建表。
+- 当前文档基于现有认知设计文档抽取稳定实体；`ActiveLongActionState` 与 `NextCyclePriming` 例外地以运行态快照契约记录，因为它们跨 tick 生效但不值得在第一版单独建表。
 - 若后续需要正式 DDL，可在本设计稳定后单独生成，不在本文件内直接给出。

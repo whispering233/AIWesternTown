@@ -549,6 +549,11 @@ type PartitionAwarePerceiveInput = {
 };
 ```
 
+对齐约定：
+
+- 在内部 API `perceive_stage` 请求体中，以 `partitionAwareInput` 字段承载该对象。
+- 在认知主链路函数签名中，`Perceive` 通过 `partitionAwareInput` 读取 `currentPartitionId` 与 `partitionSlice`。
+
 ### 6.6 处理流程
 
 1. 结算玩家动作及其站位变化

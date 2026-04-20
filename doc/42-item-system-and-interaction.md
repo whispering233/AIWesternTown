@@ -551,6 +551,7 @@ function resolveCovertItemConsequences(
   - 容器被翻动或秘密证据被拿走
 - `Action Selection` 可产出物品相关动作候选，但必须通过合法性判定
 - NPC 物品动作进入认知主链路时，统一采用 `actionType + itemActionType` 双层表达，而不是把九类动作压扁成泛化 `interact`
+- 玩家与 NPC 共用同一组 `itemActionType` 命名，玩家侧不单独定义第二套物品动作词汇
 - 调度器只决定谁跑，不直接决定物品占有关系写入
 
 ### 6.3.1 物品动作到 NPC 动作模型的映射约定
@@ -576,6 +577,25 @@ function resolveCovertItemConsequences(
 - 物品候选动作的 `targetObjectIds` 必须包含物品实例 ID
 - `give` 与 `request` 额外要求 `targetActorIds` 指向相关角色
 - `put_into_container`、`take_from_container`、`plant_back` 在需要时额外通过 `targetLocationId` 或容器对象 ID 表达目标落点
+
+### 6.3.2 玩家物品动作到主循环 / 调度入口的映射约定
+
+为与 [20-core-game-loop.md](C:/codex/project/AIWesternTown/doc/20-core-game-loop.md) 和 [40-simulation-and-state.md](C:/codex/project/AIWesternTown/doc/40-simulation-and-state.md) 保持一致，玩家侧物品动作统一走以下入口：
+
+- `ParsedPlayerAction.actionClass = "item"`
+- `ParsedPlayerAction.itemActionType` 使用与 NPC 相同的 9 类命名
+- `ParsedPlayerAction.itemResolutionMode = direct | social_request | covert | effect`
+- `PlayerCommandEnvelope.commandType = "item"`
+
+默认 tick 策略：
+
+- 通过物品动作合法性校验后，玩家物品动作默认 `consumesTick = true`
+- 默认 `worldTickReason` 按 `itemResolutionMode` 映射：
+  - `direct -> item_direct_transfer`
+  - `social_request -> item_social_request`
+  - `covert -> item_covert_operation`
+  - `effect -> item_effect_trigger`
+- 校验失败或纯 UI 库存查看不推进 `worldTick`
 
 ### 6.4 输入结构
 
@@ -610,12 +630,15 @@ type ItemIntegrationOutput = {
 3. NPC 认知循环把物品事件纳入 `Perceive -> Appraise -> Update Working Memory`
 4. 构造 NPC 物品候选时，先生成 `ActionCandidate.actionType`，再显式附带 `ActionCandidate.itemActionType`
 5. 玩家或 NPC 选择物品动作后，`ActionSelectionResult.itemActionType` 原样传入 `ItemActionIntent.itemActionType`，再进入统一动作合法性判定与结算
-6. `Act` 阶段若发现 `selectionResult.itemActionType` 非空，必须路由到物品动作校验 / 执行器，而不是退化为泛化 `interact`
-7. 结算结果写回：
+6. 玩家侧在进入调度器前统一封装为：
+   - `ParsedPlayerAction.actionClass = "item"`
+   - `PlayerCommandEnvelope.commandType = "item"`
+7. `Act` 阶段若发现 `selectionResult.itemActionType` 非空，必须路由到物品动作校验 / 执行器，而不是退化为泛化 `interact`
+8. 结算结果写回：
    - 物品占有关系
    - 世界事件窗口
    - 认知输入与记忆候选
-8. 调度器在下一 tick 再根据事件热度和可见性影响前台、近场、远场
+9. 调度器在下一 tick 再根据事件热度和可见性影响前台、近场、远场
 
 ### 6.7 设计规格和约束
 
