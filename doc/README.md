@@ -205,6 +205,28 @@
 - 阅读要求：
   - 涉及内容包生产、校验、装配前预检和文本模板规则时优先阅读
 
+#### `70-implementation-stack-and-delivery-plan.md`
+
+- 角色：技术栈与实施方案文档
+- 用途：定义第一版推荐技术栈、monorepo 目录结构、本地权威内核与 Web UI 分工、本地 LLM 调试链路，以及 worktree 并行开发原则
+- 适用场景：
+  - 项目从设计进入实现阶段时，确定落地路线
+  - 讨论为什么选择 TypeScript monorepo、本地 SQLite、本地宿主与浏览器 UI 组合
+  - 为脚手架、调试链路和任务拆分提供上位约束
+- 阅读要求：
+  - 涉及技术选型、工程骨架、运行模式、本地 LLM 调试或并行开发时优先阅读
+
+#### `71-worktree-task-card-index.md`
+
+- 角色：worktree 任务卡索引文档
+- 用途：管理第一版实现阶段的波次拆分、任务卡编号、目录所有权和依赖关系
+- 适用场景：
+  - 为并行开发分发任务
+  - 查找某张任务卡的上下游依赖
+  - 规划当前阶段应开启哪些 worktree
+- 阅读要求：
+  - 涉及并行开发、任务排期和任务分发时优先阅读
+
 ## 后续规划中的文档
 
 以下文件尚未落盘，但已经在母设计稿中定义为标准拆分目标。实现代理看到相关任务时，应优先检查这些文件是否已创建；如果尚未创建，则以母设计稿对应章节为准。
@@ -258,3 +280,8 @@
 - `43-item-schema-and-content-config.md`
 - `50-llm-integration.md`
 - `51-prompt-builder-contract.md`
+
+如果你接下来要做的工作已经进入实现阶段，请继续阅读：
+
+- `70-implementation-stack-and-delivery-plan.md`
+- `71-worktree-task-card-index.md`
