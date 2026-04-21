@@ -194,13 +194,20 @@
 - 阅读要求：
   - 涉及 PromptSpec、role-aware 编译、schema parser 时优先阅读
 
+#### `60-content-production-rules.md`
+
+- 角色：内容生产规则与自动校验设计文档
+- 用途：定义角色、秘密、事件、结局和文本模板的生产边界、禁止项、自动校验规则与装配前预检
+- 适用场景：
+  - 设计世界内容包的生产规范
+  - 审阅 `CharacterCard / SecretTemplate / EventTemplate / EndingTemplate / TextTemplate` 是否越界
+  - 设计内容自动校验器、装配前检查与失败降级逻辑
+- 阅读要求：
+  - 涉及内容包生产、校验、装配前预检和文本模板规则时优先阅读
+
 ## 后续规划中的文档
 
 以下文件尚未落盘，但已经在母设计稿中定义为标准拆分目标。实现代理看到相关任务时，应优先检查这些文件是否已创建；如果尚未创建，则以母设计稿对应章节为准。
-
-### `60-content-production-rules.md`
-
-- 负责角色模板、秘密模板、事件模板和文本生产规则
 
 ### `90-open-questions.md`
 

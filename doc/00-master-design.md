@@ -388,10 +388,10 @@ LLM 负责：
 - `doc/43-item-schema-and-content-config.md`
 - `doc/50-llm-integration.md`
 - `doc/51-prompt-builder-contract.md`
+- `doc/60-content-production-rules.md`
 
 ### 12.2 尚未独立拆分的主题
 
-- `doc/60-content-production-rules.md`
 - `doc/90-open-questions.md`
 
 阅读建议：
@@ -399,6 +399,7 @@ LLM 负责：
 - 做世界与叙事设计时，先读 `doc/10`、`doc/20`、`doc/25`、`doc/40`
 - 做 NPC 与记忆设计时，先读 `doc/30`、`doc/35`、`doc/36`、`doc/37`、`doc/38`
 - 做物品系统、容器配置和关键物设计时，先读 `doc/42`、`doc/43`，再回看 `doc/20`、`doc/25`、`doc/30`、`doc/40`
+- 做内容包、秘密模板、事件模板和文本生产规则时，先读 `doc/10`、`doc/50`、`doc/60`
 - 做模型接入时，先读 `doc/50`、`doc/51`
 
 ## 13. 当前待讨论问题
