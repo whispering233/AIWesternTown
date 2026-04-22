@@ -6,3 +6,5 @@ AGENTS.md
 node_modules/
 .turbo/
 dist/
+
+docs/superpowers/
