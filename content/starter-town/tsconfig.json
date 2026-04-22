@@ -1,8 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "rootDir": ".",
     "resolveJsonModule": true,
-    "noEmit": true
+    "outDir": "dist",
+    "types": ["node"]
   },
-  "include": ["index.ts", "*.json"]
+  "include": ["*.ts", "*.json"]
 }

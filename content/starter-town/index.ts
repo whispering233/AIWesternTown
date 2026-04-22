@@ -2,19 +2,14 @@ import items from "./items.json";
 import npcs from "./npcs.json";
 import scenes from "./scenes.json";
 
-import {
-  parseStarterContentBundle,
-  type ItemContent,
-  type NpcContent,
-  type SceneContent
-} from "../../packages/content-schema/src";
+import { parseStarterContentBundle } from "@ai-western-town/content-schema";
 
 export const starterTownContent = parseStarterContentBundle({
   packId: "starter-town",
   version: "0.1.0",
-  scenes: scenes as SceneContent[],
-  npcs: npcs as NpcContent[],
-  items: items as ItemContent[]
+  scenes,
+  npcs,
+  items
 });
 
 export type StarterTownContent = typeof starterTownContent;
