@@ -5,8 +5,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "pnpm --filter @ai-western-town/contracts build && tsc -p tsconfig.json",
+    "typecheck": "pnpm --filter @ai-western-town/contracts build && tsc -p tsconfig.json --noEmit",
     "test": "node -e \"console.log('No tests yet for @ai-western-town/ui-sdk')\""
   },
   "dependencies": {
