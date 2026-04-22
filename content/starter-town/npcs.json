@@ -1,0 +1,35 @@
+[
+  {
+    "npcId": "bartender",
+    "displayName": "Mara Holt",
+    "role": "bartender",
+    "homeSceneId": "saloon",
+    "startSceneId": "saloon",
+    "publicPersona": "A calm host who notices more than she admits.",
+    "coreDrives": ["keep the saloon neutral", "stay useful to every side"],
+    "shortTermGoals": ["defuse tonight's tension", "learn who keeps asking about the ledger"],
+    "tags": ["service_worker", "gossip_source", "social_anchor"]
+  },
+  {
+    "npcId": "sheriff",
+    "displayName": "Jonah Reed",
+    "role": "sheriff",
+    "homeSceneId": "sheriff_office",
+    "startSceneId": "sheriff_office",
+    "publicPersona": "A steady lawman trying to project control over a restless town.",
+    "coreDrives": ["keep public order", "protect his authority"],
+    "shortTermGoals": ["recover the missing pressure point before rumors spread", "watch the station traffic closely"],
+    "tags": ["law_enforcement", "authority", "ledger_tied"]
+  },
+  {
+    "npcId": "doctor",
+    "displayName": "Eliza Wynn",
+    "role": "doctor",
+    "homeSceneId": "hotel_lobby",
+    "startSceneId": "hotel_lobby",
+    "publicPersona": "A composed doctor whose patience hides private pressure.",
+    "coreDrives": ["protect her reputation", "stay ahead of sudden crises"],
+    "shortTermGoals": ["keep her tools close", "avoid getting pulled into public accusations"],
+    "tags": ["healer", "respected", "under_pressure"]
+  }
+]

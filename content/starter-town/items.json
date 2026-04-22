@@ -1,0 +1,32 @@
+[
+  {
+    "itemId": "town_ledger",
+    "displayName": "Town Ledger",
+    "category": "document",
+    "tags": ["ledger", "records", "critical"],
+    "startPlacement": {
+      "holderType": "npc",
+      "npcId": "sheriff"
+    }
+  },
+  {
+    "itemId": "office_key",
+    "displayName": "Office Key",
+    "category": "access",
+    "tags": ["key", "metal", "utility"],
+    "startPlacement": {
+      "holderType": "scene",
+      "sceneId": "saloon"
+    }
+  },
+  {
+    "itemId": "medical_bag",
+    "displayName": "Medical Bag",
+    "category": "tool",
+    "tags": ["medical", "doctor", "portable"],
+    "startPlacement": {
+      "holderType": "npc",
+      "npcId": "doctor"
+    }
+  }
+]

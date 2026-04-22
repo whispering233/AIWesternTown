@@ -1,0 +1,48 @@
+[
+  {
+    "sceneId": "saloon",
+    "displayName": "The Gilded Spur Saloon",
+    "summary": "A busy saloon where gossip, deals, and grudges mix under lamp smoke.",
+    "category": "service",
+    "tags": ["saloon", "public_gathering", "rumor_hub"],
+    "connections": [
+      { "toSceneId": "sheriff_office", "travelTime": "short" },
+      { "toSceneId": "hotel_lobby", "travelTime": "short" },
+      { "toSceneId": "train_station", "travelTime": "medium" }
+    ]
+  },
+  {
+    "sceneId": "sheriff_office",
+    "displayName": "Sheriff's Office",
+    "summary": "A cramped civic office with a desk, a lockbox, and too many unanswered questions.",
+    "category": "civic",
+    "tags": ["law_enforcement", "records", "town_center"],
+    "connections": [
+      { "toSceneId": "saloon", "travelTime": "short" },
+      { "toSceneId": "hotel_lobby", "travelTime": "short" }
+    ]
+  },
+  {
+    "sceneId": "hotel_lobby",
+    "displayName": "Rail House Hotel Lobby",
+    "summary": "A worn lobby where travelers rest and local business changes hands quietly.",
+    "category": "residence",
+    "tags": ["hotel", "lodging", "waiting_space"],
+    "connections": [
+      { "toSceneId": "saloon", "travelTime": "short" },
+      { "toSceneId": "sheriff_office", "travelTime": "short" },
+      { "toSceneId": "train_station", "travelTime": "short" }
+    ]
+  },
+  {
+    "sceneId": "train_station",
+    "displayName": "Dry Creek Station",
+    "summary": "A small platform and ticket room where arrivals can shift the whole town's mood.",
+    "category": "service",
+    "tags": ["railway", "arrival_point", "freight"],
+    "connections": [
+      { "toSceneId": "saloon", "travelTime": "medium" },
+      { "toSceneId": "hotel_lobby", "travelTime": "short" }
+    ]
+  }
+]
