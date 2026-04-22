@@ -27,7 +27,15 @@ importers:
 
   packages/content-schema: {}
 
-  packages/contracts: {}
+  packages/contracts:
+    dependencies:
+      zod:
+        specifier: ^4.1.12
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: ^24.9.1
+        version: 24.12.2
 
   packages/devtools: {}
 
@@ -71,6 +79,9 @@ packages:
     cpu: [arm64]
     os: [win32]
 
+  '@types/node@24.12.2':
+    resolution: {integrity: sha512-A1sre26ke7HDIuY/M23nd9gfB+nrmhtYyMINbjI1zHJxYteKR6qSMX56FsmjMcDb3SMcjJg5BiRRgOCC/yBD0g==}
+
   turbo@2.9.6:
     resolution: {integrity: sha512-+v2QJey7ZUeUiuigkU+uFfklvNUyPI2VO2vBpMYJA+a1hKFLFiKtUYlRHdb3P9CrAvMzi0upbjI4WT+zKtqkBg==}
     hasBin: true
@@ -79,6 +90,12 @@ packages:
     resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
     engines: {node: '>=14.17'}
     hasBin: true
+
+  undici-types@7.16.0:
+    resolution: {integrity: sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==}
+
+  zod@4.3.6:
+    resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
 
 snapshots:
 
@@ -100,6 +117,10 @@ snapshots:
   '@turbo/windows-arm64@2.9.6':
     optional: true
 
+  '@types/node@24.12.2':
+    dependencies:
+      undici-types: 7.16.0
+
   turbo@2.9.6:
     optionalDependencies:
       '@turbo/darwin-64': 2.9.6
@@ -110,3 +131,7 @@ snapshots:
       '@turbo/windows-arm64': 2.9.6
 
   typescript@6.0.3: {}
+
+  undici-types@7.16.0: {}
+
+  zod@4.3.6: {}

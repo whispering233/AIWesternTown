@@ -7,6 +7,12 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node -e \"console.log('No tests yet for @ai-western-town/contracts')\""
+    "test": "node --test dist/contracts.test.js"
+  },
+  "dependencies": {
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.1"
   }
 }
