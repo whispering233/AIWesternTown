@@ -3,4 +3,6 @@
 graphify-out/
 
 AGENTS.md
+node_modules/
 .turbo/
+dist/
