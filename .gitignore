@@ -1,6 +1,8 @@
 .superpowers
 .codex/
 graphify-out/
+.clj-kondo/
+.lsp/
 
 AGENTS.md
 node_modules/
