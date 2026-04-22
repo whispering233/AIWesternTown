@@ -2,8 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  createLocalSessionResponseSchema,
   compiledPromptSchema,
   debugRecordSchema,
+  localHostStreamEventSchema,
   playerCommandEnvelopeSchema,
   providerRequestSchema,
   taskKindSchema,
@@ -158,6 +160,65 @@ test("accepts llm_call debug records", () => {
       modelRef: "mock-small",
       finishReason: "stop",
       parseResult: "success"
+    }
+  });
+
+  assert.equal(result.success, true);
+});
+
+test("accepts local session responses", () => {
+  const result = createLocalSessionResponseSchema.safeParse({
+    session: {
+      sessionId: "session-1",
+      status: "active",
+      createdAt: "2026-04-22T19:00:00+08:00",
+      updatedAt: "2026-04-22T19:00:00+08:00",
+      worldTick: 0
+    }
+  });
+
+  assert.equal(result.success, true);
+});
+
+test("accepts local-host tick trace stream events", () => {
+  const result = localHostStreamEventSchema.safeParse({
+    eventId: "stream-3",
+    sessionId: "session-1",
+    sequence: 3,
+    emittedAt: "2026-04-22T19:00:02+08:00",
+    type: "tick.trace",
+    trace: {
+      traceId: "trace-2",
+      worldTick: 185,
+      playerCommand: {
+        commandId: "cmd-3",
+        commandType: "observe",
+        parsedAction: {
+          actionType: "look"
+        },
+        issuedAtTick: 184,
+        consumesTick: true
+      },
+      runModeBefore: "free_explore",
+      runModeAfter: "settle",
+      scheduleDecisions: {
+        foregroundFullNpcIds: [],
+        foregroundReactiveNpcIds: [],
+        nearFieldLightNpcIds: [],
+        nearFieldEscalatedNpcIds: [],
+        deferredFarFieldNpcIds: []
+      },
+      npcExecutions: [],
+      appendedEventIds: ["evt-3"],
+      debugSummary: {
+        worldTick: 185,
+        runModeBefore: "free_explore",
+        runModeAfter: "settle",
+        promotedNpcIds: [],
+        suppressedNpcIds: [],
+        interruptCandidates: [],
+        budgetNotes: ["fake-stream"]
+      }
     }
   });
 
