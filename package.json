@@ -1,0 +1,15 @@
+{
+  "name": "ai-western-town",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.31.0",
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test"
+  },
+  "devDependencies": {
+    "turbo": "^2.9.6",
+    "typescript": "^6.0.3"
+  }
+}
