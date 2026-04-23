@@ -65,7 +65,21 @@ importers:
         specifier: ^24.9.1
         version: 24.12.2
 
-  packages/app-services: {}
+  packages/app-services:
+    dependencies:
+      '@ai-western-town/content-schema':
+        specifier: workspace:*
+        version: link:../content-schema
+      '@ai-western-town/game-core':
+        specifier: workspace:*
+        version: link:../game-core
+      '@ai-western-town/starter-town-content':
+        specifier: workspace:*
+        version: link:../../content/starter-town
+    devDependencies:
+      '@types/node':
+        specifier: ^24.9.1
+        version: 24.12.2
 
   packages/cognition-core: {}
 

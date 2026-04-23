@@ -9,6 +9,7 @@ import type {
   WorldEventWindow
 } from "@ai-western-town/contracts";
 
+import { buildPlayerLoopFrame } from "./player-loop";
 import { getTargetNpcId, getTargetSceneId, resolvePlayerActionPolicy } from "./policy";
 import type {
   DialogueThreadState,
@@ -24,6 +25,7 @@ import type {
   SimulationExecutionPlan,
   SimulationStatePatchSet,
   SurfacedOpportunity,
+  PlayerStepContext,
   WorldSimulationInput,
   WorldSimulationResult
 } from "./types";
@@ -113,6 +115,25 @@ function buildEmptyVisibleUpdate(currentSceneId: string): PlayerVisibleWorldUpda
     reactiveMoments: [],
     worldHintLines: []
   };
+}
+
+function buildDefaultPlayerStepContext(
+  input: WorldSimulationInput
+): PlayerStepContext {
+  return (
+    input.playerStepContext ?? {
+      currentSceneId: input.playerContext.currentSceneId,
+      visibleNpcIds: [...input.playerContext.visibleNpcIds],
+      visibleObjects: [],
+      visibleAnomalies: [],
+      availableSoftOpportunities: [],
+      runMode: resolveRunMode(
+        input.playerContext,
+        input.activeDialogueThread,
+        input.pendingInterrupt
+      )
+    }
+  );
 }
 
 function normalizeEventWindow(
@@ -734,6 +755,7 @@ export function advanceWorldSimulation(
     input.activeDialogueThread,
     input.pendingInterrupt
   );
+  const playerStepContext = buildDefaultPlayerStepContext(input);
   const actionPolicy = resolvePlayerActionPolicy(input.playerCommand.parsedAction);
   const consumesTick = actionPolicy.consumesTick;
   const advancedToTick = consumesTick ? input.worldTick + 1 : input.worldTick;
@@ -767,6 +789,13 @@ export function advanceWorldSimulation(
   if (!consumesTick) {
     const scheduleDecisions = buildEmptyScheduleDecisionSet();
     const visibleUpdate = buildEmptyVisibleUpdate(input.playerContext.currentSceneId);
+    const playerLoopFrame = buildPlayerLoopFrame(
+      {
+        ...playerStepContext,
+        runMode: runModeBefore
+      },
+      input.playerCommand.parsedAction
+    );
     const debugSummary: SimulationDebugSummary = {
       worldTick: advancedToTick,
       runModeBefore,
@@ -781,6 +810,7 @@ export function advanceWorldSimulation(
       advancedToTick,
       resolvedRunMode: runModeBefore,
       actionPolicy,
+      playerLoopFrame,
       scheduleDecisions,
       executionPlan,
       visibleUpdate,
@@ -893,6 +923,13 @@ export function advanceWorldSimulation(
     scheduleDecisions,
     selectedInterrupt
   );
+  const playerLoopFrame = buildPlayerLoopFrame(
+    {
+      ...playerStepContext,
+      runMode: runModeBefore
+    },
+    input.playerCommand.parsedAction
+  );
   const interruptCandidates = effectiveEventWindow.events
     .filter((event) => event.heatLevel === "interrupt")
     .map((event) => event.eventId);
@@ -934,6 +971,7 @@ export function advanceWorldSimulation(
     advancedToTick,
     resolvedRunMode: runModeAfterTick,
     actionPolicy,
+    playerLoopFrame,
     scheduleDecisions,
     executionPlan,
     visibleUpdate,
