@@ -317,6 +317,7 @@ export type WorldSimulationInput = {
   playerCommand: PlayerCommandEnvelope;
   playerContext: PlayerContextSlice;
   playerStepContext?: PlayerStepContext;
+  nextPlayerStepContext?: PlayerStepContext;
   sceneGraph: SceneGraphSlice;
   npcScheduleStates: NPCScheduleState[];
   activeLongActions: ActiveLongActionSnapshot[];

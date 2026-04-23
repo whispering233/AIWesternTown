@@ -136,6 +136,25 @@ function buildDefaultPlayerStepContext(
   );
 }
 
+function resolvePlayerLoopStepContext(
+  input: WorldSimulationInput
+): PlayerStepContext {
+  const action = input.playerCommand.parsedAction;
+  const targetSceneId = getTargetSceneId(action);
+  const nextStepContext = input.nextPlayerStepContext;
+
+  if (
+    nextStepContext &&
+    targetSceneId &&
+    (action.actionClass === "travel" || action.actionClass === "reposition") &&
+    nextStepContext.currentSceneId === targetSceneId
+  ) {
+    return nextStepContext;
+  }
+
+  return buildDefaultPlayerStepContext(input);
+}
+
 function normalizeEventWindow(
   window: WorldEventWindow,
   worldTick: number
@@ -755,7 +774,7 @@ export function advanceWorldSimulation(
     input.activeDialogueThread,
     input.pendingInterrupt
   );
-  const playerStepContext = buildDefaultPlayerStepContext(input);
+  const playerStepContext = resolvePlayerLoopStepContext(input);
   const actionPolicy = resolvePlayerActionPolicy(input.playerCommand.parsedAction);
   const consumesTick = actionPolicy.consumesTick;
   const advancedToTick = consumesTick ? input.worldTick + 1 : input.worldTick;
