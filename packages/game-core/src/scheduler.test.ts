@@ -171,6 +171,55 @@ test("social intervention opens or advances a focused dialogue thread", () => {
   assert.equal(result.statePatches.nextDialogueThread?.status, "active");
 });
 
+test("travel uses the destination step context when building the player loop frame", () => {
+  const input = createBaseInput();
+  input.playerCommand = {
+    commandId: "cmd-travel",
+    commandType: "move",
+    parsedAction: {
+      actionId: "act-travel",
+      actionClass: "travel",
+      actionType: "walk_to_hotel",
+      targetSceneId: "hotel",
+      urgencyTag: "none"
+    },
+    issuedAtTick: 10,
+    consumesTick: false
+  };
+  input.playerStepContext = {
+    currentSceneId: "saloon",
+    currentSceneDisplayName: "Saloon",
+    currentSceneSummary: "The current room smells like whiskey and dust.",
+    visibleNpcIds: ["npc-doctor", "npc-sheriff"],
+    visibleObjects: [],
+    visibleAnomalies: [],
+    availableSoftOpportunities: [],
+    runMode: "free_explore"
+  };
+  Object.assign(input, {
+    nextPlayerStepContext: {
+      currentSceneId: "hotel",
+      currentSceneDisplayName: "Hotel",
+      currentSceneSummary: "A quiet lobby with a clear view of the front desk.",
+      visibleNpcIds: ["npc-innkeeper"],
+      visibleObjects: [],
+      visibleAnomalies: [],
+      availableSoftOpportunities: [],
+      runMode: "free_explore"
+    }
+  });
+
+  const result = advanceWorldSimulation(input);
+
+  assert.equal(result.advancedToTick, 10);
+  assert.equal(result.playerLoopFrame.sceneArrivalView?.arrivalKind, "travel");
+  assert.equal(result.playerLoopFrame.sceneArrivalView?.sceneId, "hotel");
+  assert.equal(result.playerLoopFrame.coarseObservation.sceneId, "hotel");
+  assert.deepEqual(result.playerLoopFrame.coarseObservation.visibleNpcIds, [
+    "npc-innkeeper"
+  ]);
+});
+
 test("interrupt events suspend the active dialogue and surface an interrupt payload", () => {
   const input = createBaseInput();
   input.playerContext.currentMode = "focused_dialogue";

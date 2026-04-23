@@ -87,6 +87,40 @@ export type VisibleAnomalySlice = {
   tags?: string[];
 };
 
+export type SceneArrivalView = {
+  sceneId: string;
+  sceneDisplayName?: string;
+  sceneSummary?: string;
+  arrivalKind: "initial" | "travel" | "return" | "reposition";
+};
+
+export type CoarseObservationPayload = {
+  sceneId: string;
+  headline: string;
+  summaryLines: string[];
+  visibleNpcIds: string[];
+  visibleObjectIds: string[];
+  visibleAnomalyIds: string[];
+};
+
+export type ObservationTargetEntry = {
+  targetId: string;
+  targetType: "npc" | "object" | "anomaly";
+  label: string;
+  reason: string;
+  observationMode: "look" | "inspect" | "eavesdrop" | "shadow";
+  findingIds: string[];
+};
+
+export type ObservationFinding = {
+  findingId: string;
+  targetId: string;
+  targetType: "npc" | "object" | "anomaly";
+  summary: string;
+  detailLevel: "coarse" | "focused";
+  tags: string[];
+};
+
 export type SurfacedOpportunity = {
   opportunityId: string;
   opportunityType: OpportunityType;
@@ -97,12 +131,22 @@ export type SurfacedOpportunity = {
 
 export type PlayerStepContext = {
   currentSceneId: string;
+  currentSceneDisplayName?: string;
+  currentSceneSummary?: string;
   localSceneClusterId?: string;
   visibleNpcIds: string[];
   visibleObjects: VisibleObjectSlice[];
   visibleAnomalies: VisibleAnomalySlice[];
   availableSoftOpportunities: SurfacedOpportunity[];
   runMode: Exclude<SimulationRunMode, "settle">;
+};
+
+export type PlayerLoopFrame = {
+  sceneArrivalView?: SceneArrivalView;
+  coarseObservation: CoarseObservationPayload;
+  observationFindings: ObservationFinding[];
+  deepObservationTargets: ObservationTargetEntry[];
+  surfacedOpportunities: SurfacedOpportunity[];
 };
 
 export type PlayerActionExecutionPolicy = {
@@ -272,6 +316,8 @@ export type WorldSimulationInput = {
   worldTick: number;
   playerCommand: PlayerCommandEnvelope;
   playerContext: PlayerContextSlice;
+  playerStepContext?: PlayerStepContext;
+  nextPlayerStepContext?: PlayerStepContext;
   sceneGraph: SceneGraphSlice;
   npcScheduleStates: NPCScheduleState[];
   activeLongActions: ActiveLongActionSnapshot[];
@@ -320,6 +366,7 @@ export type WorldSimulationResult = {
   advancedToTick: number;
   resolvedRunMode: SimulationRunMode;
   actionPolicy: PlayerActionExecutionPolicy;
+  playerLoopFrame: PlayerLoopFrame;
   scheduleDecisions: ScheduleDecisionSet;
   executionPlan: SimulationExecutionPlan;
   visibleUpdate: PlayerVisibleWorldUpdate;
