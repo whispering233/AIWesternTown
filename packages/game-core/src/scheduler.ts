@@ -151,7 +151,8 @@ function buildPlayerActionEvent(
   playerCommand: PlayerCommandEnvelope,
   worldTick: number,
   currentSceneId: string,
-  worldTickReason: string
+  worldTickReason: string,
+  consumesTick: boolean
 ): WorldEventRecord {
   const targetNpcId = getTargetNpcId(playerCommand.parsedAction);
   const targetSceneId = getTargetSceneId(playerCommand.parsedAction);
@@ -166,7 +167,7 @@ function buildPlayerActionEvent(
     actorIds: ["player"],
     targetIds: targetNpcId ? [targetNpcId] : [],
     tags,
-    heatLevel: playerCommand.consumesTick ? "high" : "ordinary",
+    heatLevel: consumesTick ? "high" : "ordinary",
     sourceCommandId: playerCommand.commandId,
     summary: `Resolved player action ${actionType}.`,
     payload: {
@@ -810,7 +811,8 @@ export function advanceWorldSimulation(
       input.playerCommand,
       advancedToTick,
       input.playerContext.currentSceneId,
-      actionPolicy.worldTickReason
+      actionPolicy.worldTickReason,
+      consumesTick
     )
   ];
   const effectiveEventWindow = appendWorldEvents(

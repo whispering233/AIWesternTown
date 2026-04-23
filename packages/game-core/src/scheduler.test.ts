@@ -132,6 +132,7 @@ test("advanceWorldSimulation consumes a tick for investigation and emits structu
   assert.equal(result.advancedToTick, 11);
   assert.equal(result.resolvedRunMode, "settle");
   assert.equal(result.appendedEvents.length, 1);
+  assert.equal(result.appendedEvents[0]?.heatLevel, "high");
   assert.equal(result.executionPlan.playerActionExecution.worldTickReason, "investigation_cost");
   assert.deepEqual(
     result.eventFlow.map((entry) => entry.kind),
