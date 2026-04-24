@@ -67,7 +67,15 @@ importers:
 
   packages/app-services: {}
 
-  packages/cognition-core: {}
+  packages/cognition-core:
+    dependencies:
+      '@ai-western-town/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+    devDependencies:
+      '@types/node':
+        specifier: ^24.9.1
+        version: 24.12.2
 
   packages/content-schema:
     dependencies:
