@@ -267,3 +267,25 @@ test("reposition policy marks committed moves as tick-consuming", () => {
   assert.equal(policy.consumesTick, true);
   assert.equal(policy.noticeRisk, "easy");
 });
+
+test("duplicate partition links are rejected before relation derivation can drift by direction", () => {
+  const graph = createSaloonGraph();
+  graph.links.push({
+    fromPartitionId: "bar_counter",
+    toPartitionId: "front_door",
+    movementCost: "committed",
+    visualRelation: "partial",
+    audioRelation: "blocked",
+    noticeRelation: "hard",
+    transitionStyle: "through_crowd",
+    tags: ["duplicate"]
+  });
+
+  const topology = readScenePartitionGraph("saloon", graph);
+
+  assert.equal(topology.fallbackMode, "scene_default");
+  assert.match(
+    topology.issues[0] ?? "",
+    /duplicate link between bar_counter and front_door/
+  );
+});

@@ -110,6 +110,7 @@ export function validateScenePartitionGraph(graph: ScenePartitionGraph): {
   const issues: string[] = [];
   const partitionIds = new Set<string>();
   const linkCounts = new Map<string, number>();
+  const normalizedLinkKeys = new Set<string>();
 
   if (graph.partitions.length === 0) {
     issues.push("scene topology must include at least one partition");
@@ -151,6 +152,18 @@ export function validateScenePartitionGraph(graph: ScenePartitionGraph): {
 
     if (link.fromPartitionId === link.toPartitionId) {
       issues.push(`self link ${link.fromPartitionId} should be omitted`);
+    }
+
+    const normalizedLinkKey = [link.fromPartitionId, link.toPartitionId]
+      .sort()
+      .join("::");
+
+    if (normalizedLinkKeys.has(normalizedLinkKey)) {
+      issues.push(
+        `duplicate link between ${link.fromPartitionId} and ${link.toPartitionId}`
+      );
+    } else {
+      normalizedLinkKeys.add(normalizedLinkKey);
     }
 
     linkCounts.set(
@@ -232,32 +245,30 @@ function normalizeGraph(graph: ScenePartitionGraph): NormalizedGraphCache {
   );
   const linksByFromId = new Map<string, Map<string, PartitionLink>>();
 
-  for (const link of graph.links) {
-    const existingForward = linksByFromId.get(link.fromPartitionId);
-    if (existingForward) {
-      existingForward.set(link.toPartitionId, link);
-    } else {
-      linksByFromId.set(
-        link.fromPartitionId,
-        new Map([[link.toPartitionId, link]])
-      );
+  const setLink = (link: PartitionLink): void => {
+    const existing = linksByFromId.get(link.fromPartitionId);
+
+    if (existing) {
+      existing.set(link.toPartitionId, link);
+      return;
     }
+
+    linksByFromId.set(
+      link.fromPartitionId,
+      new Map([[link.toPartitionId, link]])
+    );
+  };
+
+  for (const link of graph.links) {
+    setLink(link);
 
     const reverseLink: PartitionLink = {
       ...link,
       fromPartitionId: link.toPartitionId,
       toPartitionId: link.fromPartitionId
     };
-    const existingReverse = linksByFromId.get(reverseLink.fromPartitionId);
 
-    if (existingReverse && !existingReverse.has(reverseLink.toPartitionId)) {
-      existingReverse.set(reverseLink.toPartitionId, reverseLink);
-    } else if (!existingReverse) {
-      linksByFromId.set(
-        reverseLink.fromPartitionId,
-        new Map([[reverseLink.toPartitionId, reverseLink]])
-      );
-    }
+    setLink(reverseLink);
   }
 
   return {
