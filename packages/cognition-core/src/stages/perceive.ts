@@ -1,6 +1,6 @@
 import type { WorldEventRecord } from "@ai-western-town/contracts";
 
-import { buildStageId, clamp01, includesAnyTerm, maxOrZero, overlaps, uniqueStrings } from "../helpers";
+import { buildStageId, clamp01, includesAnyTerm, maxOrZero, overlaps, uniqueStrings } from "../helpers.js";
 import type {
   ClueSnapshot,
   PerceiveInput,
@@ -9,7 +9,7 @@ import type {
   RawObservationType,
   RetrievedMemoryItem,
   WorkingMemoryItem
-} from "../types";
+} from "../types.js";
 
 type RawObservationCandidate = {
   sourceId: string;

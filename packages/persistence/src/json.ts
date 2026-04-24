@@ -1,4 +1,4 @@
-import type { JsonObject, JsonValue } from "./types";
+import type { JsonObject, JsonValue } from "./types.js";
 
 export function jsonStringify(value: JsonValue): string {
   return JSON.stringify(value);

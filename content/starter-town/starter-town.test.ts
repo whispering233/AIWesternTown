@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { starterTownContent } from "./index";
+import { starterTownContent } from "./index.js";
 
 test("exports a validated starter town bundle", () => {
   assert.equal(starterTownContent.packId, "starter-town");

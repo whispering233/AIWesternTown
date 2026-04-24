@@ -2,6 +2,7 @@
   "name": "@ai-western-town/web",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "pnpm --filter @ai-western-town/ui-sdk build && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit && vite build",

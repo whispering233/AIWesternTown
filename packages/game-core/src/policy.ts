@@ -4,7 +4,7 @@ import type {
   PlayerActionExecutionPolicy,
   PlayerStepContext,
   WorldTickReason
-} from "./types";
+} from "./types.js";
 
 const REPOSITION_TICK_TAGS = new Set([
   "observe_intent",

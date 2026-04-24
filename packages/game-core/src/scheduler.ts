@@ -9,8 +9,8 @@ import type {
   WorldEventWindow
 } from "@ai-western-town/contracts";
 
-import { buildPlayerLoopFrame } from "./player-loop";
-import { getTargetNpcId, getTargetSceneId, resolvePlayerActionPolicy } from "./policy";
+import { buildPlayerLoopFrame } from "./player-loop.js";
+import { getTargetNpcId, getTargetSceneId, resolvePlayerActionPolicy } from "./policy.js";
 import type {
   DialogueThreadState,
   InterruptEvaluationInput,
@@ -28,7 +28,7 @@ import type {
   PlayerStepContext,
   WorldSimulationInput,
   WorldSimulationResult
-} from "./types";
+} from "./types.js";
 
 const FULL_EXECUTION_STAGES: NpcStage[] = [
   "prefetch",

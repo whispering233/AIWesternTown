@@ -8,7 +8,7 @@ import {
   readScenePartitionGraph,
   resolvePartitionRepositionPolicy,
   type ScenePartitionGraph
-} from "../index";
+} from "../index.js";
 
 function createSaloonGraph(): ScenePartitionGraph {
   return {

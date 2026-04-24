@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 
-import { openPersistenceStore } from "./index";
+import { openPersistenceStore } from "./index.js";
 
 function withStore(run: (store: ReturnType<typeof openPersistenceStore>) => void) {
   const tempDirectory = mkdtempSync(join(tmpdir(), "ai-western-town-persistence-"));

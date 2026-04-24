@@ -1,1 +1,1 @@
-export * from "./starter-town-player-loop";
+export * from "./starter-town-player-loop.js";

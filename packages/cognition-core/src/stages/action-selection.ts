@@ -1,11 +1,11 @@
-import { clamp01, maxOrZero, overlaps, uniqueStrings } from "../helpers";
+import { clamp01, maxOrZero, overlaps, uniqueStrings } from "../helpers.js";
 import type {
   ActionCandidate,
   ActionSelectionInput,
   ActionSelectionResult,
   AppraisalResult,
   NpcActionType
-} from "../types";
+} from "../types.js";
 
 function getDominantAppraisal(appraisals: AppraisalResult[]): AppraisalResult | undefined {
   return [...appraisals].sort((left, right) => {

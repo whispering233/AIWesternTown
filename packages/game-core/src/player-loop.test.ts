@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildPlayerLoopFrame } from "./index";
-import type { PlayerStepContext } from "./index";
+import { buildPlayerLoopFrame } from "./index.js";
+import type { PlayerStepContext } from "./index.js";
 
 function createStepContext(): PlayerStepContext {
   return {

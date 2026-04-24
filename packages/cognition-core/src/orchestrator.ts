@@ -1,12 +1,12 @@
-import { appraise } from "./stages/appraise";
-import { act } from "./stages/act";
-import { selectAction } from "./stages/action-selection";
-import { perceive } from "./stages/perceive";
+import { appraise } from "./stages/appraise.js";
+import { act } from "./stages/act.js";
+import { selectAction } from "./stages/action-selection.js";
+import { perceive } from "./stages/perceive.js";
 import {
   buildSchedulerBridgeMeta,
   deriveCognitionLiteStageFlags
-} from "./scheduler-adapter";
-import type { CognitionLiteRunInput, CognitionLiteRunResult } from "./types";
+} from "./scheduler-adapter.js";
+import type { CognitionLiteRunInput, CognitionLiteRunResult } from "./types.js";
 
 export function runCognitionLite(input: CognitionLiteRunInput): CognitionLiteRunResult {
   const stageFlags = deriveCognitionLiteStageFlags(input.plannedExecution);

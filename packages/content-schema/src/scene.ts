@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { identifierSchema, nonEmptyStringSchema, tagsSchema } from "./primitives";
+import { identifierSchema, nonEmptyStringSchema, tagsSchema } from "./primitives.js";
 
 export const sceneCategorySchema = z.enum([
   "interior",

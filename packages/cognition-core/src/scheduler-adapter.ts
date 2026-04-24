@@ -4,7 +4,7 @@ import type {
   CognitionLiteInternalStage,
   CognitionLiteStageFlags,
   SchedulerBridgeMeta
-} from "./types";
+} from "./types.js";
 
 export function deriveCognitionLiteStageFlags(
   plannedExecution?: PlannedNpcExecution

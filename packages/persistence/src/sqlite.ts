@@ -1,14 +1,17 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
-import * as schema from "./schema";
+import * as schema from "./schema.js";
 
 export type PersistenceDatabaseOptions = {
   filename: string;
 };
+
+const migrationsFolder = fileURLToPath(new URL("../drizzle", import.meta.url));
 
 export class PersistenceDatabase {
   private readonly client: Database.Database;
@@ -41,7 +44,7 @@ export class PersistenceDatabase {
 
   private initializeMigrations(): void {
     migrate(this.database, {
-      migrationsFolder: `${__dirname}/../drizzle`
+      migrationsFolder
     });
   }
 }

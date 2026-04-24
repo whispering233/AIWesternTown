@@ -10,7 +10,7 @@ import {
   type NpcContent,
   type SceneContent,
   type StarterContentBundle
-} from "./index";
+} from "./index.js";
 
 function readJsonFile<T>(filename: string): T {
   const filePath = path.resolve(

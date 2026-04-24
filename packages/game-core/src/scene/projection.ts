@@ -10,15 +10,15 @@ import {
   type SceneVisibilityContext,
   type SceneVisibilityProjection,
   type VisibleObjectLocator
-} from "./types";
+} from "./types.js";
 import {
   derivePartitionRelation,
   readScenePartitionGraph
-} from "./graph";
+} from "./graph.js";
 import type {
   NpcToNpcPartitionRelation,
   PlayerToNpcPartitionRelation
-} from "./types";
+} from "./types.js";
 
 function buildMoveHint(relation: PartitionRelation): string | undefined {
   if (!relation.reachable || relation.pathLength === null) {

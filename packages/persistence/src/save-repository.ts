@@ -1,9 +1,9 @@
 import { desc, eq, sql, type InferSelectModel } from "drizzle-orm";
 
-import { jsonParseObject, jsonStringify } from "./json";
-import { saveSelection, savesTable } from "./schema";
-import { PersistenceDatabase } from "./sqlite";
-import type { CreateSaveInput, SaveRecord, SaveStatus } from "./types";
+import { jsonParseObject, jsonStringify } from "./json.js";
+import { saveSelection, savesTable } from "./schema.js";
+import { PersistenceDatabase } from "./sqlite.js";
+import type { CreateSaveInput, SaveRecord, SaveStatus } from "./types.js";
 
 export class SaveRepository {
   public constructor(private readonly database: PersistenceDatabase) {}

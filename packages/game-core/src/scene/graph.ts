@@ -9,7 +9,7 @@ import {
   type ScenePartitionGraph,
   type SceneTopologyReadResult,
   type VisualRelation
-} from "./types";
+} from "./types.js";
 
 const VISUAL_ORDER: VisualRelation[] = ["blocked", "partial", "clear"];
 const AUDIO_ORDER: AudioRelation[] = ["blocked", "muffled", "clear"];

@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 
 import type { WorldEventWindow } from "@ai-western-town/contracts";
 
-import { act, deriveCognitionLiteStageFlags, runCognitionLite } from "./index";
-import type { CognitionLiteRunInput } from "./types";
+import { act, deriveCognitionLiteStageFlags, runCognitionLite } from "./index.js";
+import type { CognitionLiteRunInput } from "./types.js";
 
 function buildEventWindow(tick: number): WorldEventWindow {
   return {

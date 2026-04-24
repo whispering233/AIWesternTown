@@ -1,7 +1,7 @@
-import { EventLogRepository } from "./event-log-repository";
-import { SaveRepository } from "./save-repository";
-import { PersistenceDatabase, type PersistenceDatabaseOptions } from "./sqlite";
-import { SessionStateRepository } from "./session-state-repository";
+import { EventLogRepository } from "./event-log-repository.js";
+import { SaveRepository } from "./save-repository.js";
+import { PersistenceDatabase, type PersistenceDatabaseOptions } from "./sqlite.js";
+import { SessionStateRepository } from "./session-state-repository.js";
 
 export class PersistenceStore {
   public readonly saves: SaveRepository;

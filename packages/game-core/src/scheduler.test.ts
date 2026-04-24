@@ -7,8 +7,8 @@ import {
   advanceWorldSimulation,
   evaluatePlayerInterrupt,
   resolvePlayerActionPolicy
-} from "./index";
-import type { WorldSimulationInput } from "./index";
+} from "./index.js";
+import type { WorldSimulationInput } from "./index.js";
 
 function createEmptyEventWindow(worldTick: number): WorldEventWindow {
   return {

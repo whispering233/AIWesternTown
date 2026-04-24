@@ -1,7 +1,7 @@
 import type { WorldEventRecord } from "@ai-western-town/contracts";
 
-import { clamp01, overlaps } from "../helpers";
-import type { ActInput, ActionExecutionResult, StateMutation } from "../types";
+import { clamp01, overlaps } from "../helpers.js";
+import type { ActInput, ActionExecutionResult, StateMutation } from "../types.js";
 
 function buildStateMutations(input: ActInput): StateMutation[] {
   const { selectionResult } = input;

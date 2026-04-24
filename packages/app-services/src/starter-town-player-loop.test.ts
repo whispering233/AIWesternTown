@@ -8,7 +8,7 @@ import type { WorldSimulationInput } from "@ai-western-town/game-core";
 import {
   buildStarterTownPlayableSlice,
   buildStarterTownPlayerStepContext
-} from "./starter-town-player-loop";
+} from "./starter-town-player-loop.js";
 
 function createSimulationInput(
   currentSceneId: string,

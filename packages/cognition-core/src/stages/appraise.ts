@@ -4,14 +4,14 @@ import {
   maxOrZero,
   overlaps,
   uniqueStrings
-} from "../helpers";
+} from "../helpers.js";
 import type {
   AppraiseInput,
   AppraiseResult,
   AppraisalResult,
   GoalSummary,
   RetrievedBelief
-} from "../types";
+} from "../types.js";
 
 // First-pass appraisal still matches against free-form observation text.
 // The current content/debug pipeline can emit either Chinese or English summaries,

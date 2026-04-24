@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-import { itemContentSchema, type ItemContent } from "./item";
-import { npcContentSchema, type NpcContent } from "./npc";
-import { identifierSchema, nonEmptyStringSchema } from "./primitives";
-import { sceneContentSchema, type SceneContent } from "./scene";
+import { itemContentSchema, type ItemContent } from "./item.js";
+import { npcContentSchema, type NpcContent } from "./npc.js";
+import { identifierSchema, nonEmptyStringSchema } from "./primitives.js";
+import { sceneContentSchema, type SceneContent } from "./scene.js";
 
 const baseStarterContentBundleSchema = z.object({
   packId: identifierSchema,

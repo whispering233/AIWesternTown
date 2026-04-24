@@ -2,11 +2,13 @@
   "name": "ai-western-town",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@10.31.0",
   "scripts": {
+    "test:esm": "node --test scripts/esm-migration.test.js",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test"
+    "test": "pnpm run test:esm && turbo run test"
   },
   "devDependencies": {
     "turbo": "^2.9.6",

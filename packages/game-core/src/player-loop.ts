@@ -1,4 +1,4 @@
-import { getTargetNpcId, getTargetSceneId } from "./policy";
+import { getTargetNpcId, getTargetSceneId } from "./policy.js";
 import type {
   CoarseObservationPayload,
   GameCoreParsedPlayerAction,
@@ -10,7 +10,7 @@ import type {
   SurfacedOpportunity,
   VisibleAnomalySlice,
   VisibleObjectSlice
-} from "./types";
+} from "./types.js";
 
 type OpportunityBuilderInput = {
   stepContext: PlayerStepContext;

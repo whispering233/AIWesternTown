@@ -4,17 +4,17 @@ import {
   jsonParseObject,
   jsonParseStringArray,
   jsonStringify
-} from "./json";
-import { SaveRepository } from "./save-repository";
-import { eventLogSelection, eventLogsTable } from "./schema";
-import { PersistenceDatabase } from "./sqlite";
+} from "./json.js";
+import { SaveRepository } from "./save-repository.js";
+import { eventLogSelection, eventLogsTable } from "./schema.js";
+import { PersistenceDatabase } from "./sqlite.js";
 import type {
   AppendEventLogInput,
   EventHeatLevel,
   EventLogQuery,
   EventLogRecord,
   InterruptType
-} from "./types";
+} from "./types.js";
 
 export class EventLogRepository {
   public constructor(private readonly database: PersistenceDatabase) {}
