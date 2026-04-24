@@ -6,10 +6,10 @@ import {
   tagSchema,
   timestampSchema,
   tickSchema
-} from "./base";
-import { llmCallTraceSchema } from "./llm";
-import { tickTraceRecordSchema } from "./tick-trace";
-import { worldEventRecordSchema } from "./world-event";
+} from "./base.js";
+import { llmCallTraceSchema } from "./llm.js";
+import { tickTraceRecordSchema } from "./tick-trace.js";
+import { worldEventRecordSchema } from "./world-event.js";
 
 export const debugRecordKindSchema = z.enum([
   "tick_trace",

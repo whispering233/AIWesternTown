@@ -4,18 +4,12 @@ import Fastify, {
   type FastifyRequest
 } from "fastify";
 
-import {
-  createLocalSessionRequestSchema,
-  createLocalSessionResponseSchema,
-  localHostStreamEventSchema,
-  submitLocalCommandRequestSchema,
-  submitLocalCommandResponseSchema
-} from "@ai-western-town/contracts";
+import * as contracts from "@ai-western-town/contracts";
 
 import {
   InMemoryLocalSessionStore,
   SessionNotFoundError
-} from "./session-store";
+} from "./session-store.js";
 
 type SessionParams = {
   sessionId: string;
@@ -33,6 +27,17 @@ export function buildLocalHostServer(
     options.sessionStore ?? new InMemoryLocalSessionStore();
   const server = Fastify({
     logger: options.logger ?? true
+  });
+
+  server.addHook("onRequest", (request, reply, done) => {
+    applyCorsHeaders(request, reply);
+
+    if (request.method === "OPTIONS") {
+      void reply.code(204).send();
+      return;
+    }
+
+    done();
   });
 
   server.setErrorHandler((error, _request, reply) => {
@@ -63,9 +68,11 @@ export function buildLocalHostServer(
   });
 
   server.post("/sessions", async (request, reply) => {
-    const body = createLocalSessionRequestSchema.parse(request.body ?? {});
+    const body = contracts.createLocalSessionRequestSchema.parse(
+      request.body ?? {}
+    );
     const session = sessionStore.createSession(body);
-    const response = createLocalSessionResponseSchema.parse({
+    const response = contracts.createLocalSessionResponseSchema.parse({
       session
     });
 
@@ -78,8 +85,10 @@ export function buildLocalHostServer(
       request: FastifyRequest<{ Params: SessionParams }>,
       reply: FastifyReply
     ) => {
-      const body = submitLocalCommandRequestSchema.parse(request.body ?? {});
-      const response = submitLocalCommandResponseSchema.parse(
+      const body = contracts.submitLocalCommandRequestSchema.parse(
+        request.body ?? {}
+      );
+      const response = contracts.submitLocalCommandResponseSchema.parse(
         sessionStore.submitCommand(request.params.sessionId, body.playerCommand)
       );
 
@@ -104,6 +113,11 @@ export function buildLocalHostServer(
       reply.raw.setHeader("Content-Type", "text/event-stream; charset=utf-8");
       reply.raw.setHeader("Cache-Control", "no-cache, no-transform");
       reply.raw.setHeader("Connection", "keep-alive");
+      reply.raw.setHeader(
+        "Access-Control-Allow-Origin",
+        getAllowedOrigin(request.headers.origin)
+      );
+      reply.raw.setHeader("Vary", "Origin");
       reply.raw.flushHeaders?.();
 
       writeSseEvent(reply, snapshotEvent);
@@ -121,9 +135,28 @@ export function buildLocalHostServer(
 }
 
 function writeSseEvent(reply: FastifyReply, event: unknown): void {
-  const payload = localHostStreamEventSchema.parse(event);
+  const payload = contracts.localHostStreamEventSchema.parse(event);
 
   reply.raw.write(`id: ${payload.sequence}\n`);
   reply.raw.write(`event: ${payload.type}\n`);
   reply.raw.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+function applyCorsHeaders(
+  request: FastifyRequest,
+  reply: FastifyReply
+): void {
+  reply.header(
+    "Access-Control-Allow-Origin",
+    getAllowedOrigin(request.headers.origin)
+  );
+  reply.header("Vary", "Origin");
+  reply.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  reply.header("Access-Control-Allow-Headers", "content-type");
+}
+
+function getAllowedOrigin(originHeader: string | string[] | undefined): string {
+  return typeof originHeader === "string" && originHeader.length > 0
+    ? originHeader
+    : "*";
 }

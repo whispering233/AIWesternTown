@@ -32,6 +32,7 @@ export function createMockShellViewModel(): ShellViewModel {
       ]
     },
     scene: {
+      sceneId: "dust-crossing",
       kicker: "Starter Town",
       title: "尘土街口，黄昏压到窗棂边",
       description:
@@ -39,6 +40,46 @@ export function createMockShellViewModel(): ShellViewModel {
       timeLabel: "Day 1 · Dusk",
       locationLabel: "Dust Crossing / Main Street",
       runModeLabel: "free_explore"
+    },
+    movement: {
+      title: "可去地点",
+      description: "把移动放到主循环顶部，方便先走位再决定观察方向。",
+      items: [
+        {
+          id: "move-saloon",
+          sceneId: "saloon",
+          label: "走进酒馆",
+          hint: "本地移动，不推进世界",
+          commandText: "前往酒馆"
+        },
+        {
+          id: "move-stable",
+          sceneId: "stable",
+          label: "靠近马厩",
+          hint: "先缩短距离，再看动静来源",
+          commandText: "走近马厩"
+        }
+      ]
+    },
+    opportunities: {
+      title: "现在可做的事",
+      description: "把最像第一步的观察和接近动作前置，不让它们埋在结果流里。",
+      items: [
+        {
+          id: "opp-observe-saloon-door",
+          kind: "observe",
+          title: "观察酒馆门口",
+          detail: "先看那两个人是谁在刻意沉默。",
+          commandText: "观察酒馆门口那两个人的反应"
+        },
+        {
+          id: "opp-inspect-clinic",
+          kind: "inspect",
+          title: "检查诊所窗帘",
+          detail: "确认窗帘后有没有人影或异动。",
+          commandText: "抬头看诊所的窗帘后面有没有人影"
+        }
+      ]
     },
     feed: [
       {
@@ -62,25 +103,25 @@ export function createMockShellViewModel(): ShellViewModel {
       {
         id: "suggestion-1",
         label: "观察酒馆门口",
-        hint: "粗观察 -> 深挖入口",
+        hint: "机会动作会同步出现在主循环面板",
         commandText: "观察酒馆门口那两个人的反应"
       },
       {
         id: "suggestion-2",
         label: "走近马厩",
-        hint: "本地移动，不改世界规则",
+        hint: "移动 leads 会优先出现在场景头部",
         commandText: "走近马厩，看看刚才是什么动静"
       },
       {
         id: "suggestion-3",
         label: "检查诊所",
-        hint: "为后续事件流预留稳定入口",
+        hint: "保留自由输入作为补充入口",
         commandText: "抬头看诊所的窗帘后面有没有人影"
       }
     ],
     composer: {
       title: "输入你想做的事",
-      description: "当前命令只更新本地 UI 假数据，后续会接入真实 transport 和回执。",
+      description: "当前命令既可以直接输入，也可以从上面的移动与机会动作进入。",
       placeholder: "例如：观察吧台边的人，或者跟上刚离开酒馆的医生",
       draft: "",
       footnote: "当前为浏览器壳层演示。"

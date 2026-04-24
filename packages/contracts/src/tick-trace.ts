@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { identifierSchema, metadataSchema, tagSchema, tickSchema } from "./base";
-import { playerCommandEnvelopeSchema } from "./player-command";
+import { identifierSchema, metadataSchema, tagSchema, tickSchema } from "./base.js";
+import { playerCommandEnvelopeSchema } from "./player-command.js";
 
 export const simulationRunModeSchema = z.enum([
   "free_explore",

@@ -32,6 +32,12 @@ importers:
 
   apps/web:
     dependencies:
+      '@ai-western-town/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@ai-western-town/ui-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ui-sdk
       react:
         specifier: ^19.2.0
         version: 19.2.5
@@ -51,6 +57,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^5.1.0
         version: 5.2.0(vite@7.3.2(@types/node@24.12.2)(tsx@4.21.0))
+      tsx:
+        specifier: ^4.20.6
+        version: 4.21.0
       vite:
         specifier: ^7.1.12
         version: 7.3.2(@types/node@24.12.2)(tsx@4.21.0)
@@ -149,6 +158,10 @@ importers:
       '@ai-western-town/contracts':
         specifier: workspace:*
         version: link:../contracts
+    devDependencies:
+      '@types/node':
+        specifier: ^24.9.1
+        version: 24.12.2
 
 packages:
 

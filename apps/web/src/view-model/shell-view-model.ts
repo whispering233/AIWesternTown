@@ -22,6 +22,28 @@ export type CommandSuggestion = {
   commandText: string;
 };
 
+export type MovementItem = {
+  id: string;
+  sceneId: string;
+  label: string;
+  hint: string;
+  commandText: string;
+};
+
+export type OpportunityItem = {
+  id: string;
+  kind:
+    | "observe"
+    | "eavesdrop"
+    | "approach"
+    | "follow"
+    | "inspect"
+    | "interrupt";
+  title: string;
+  detail: string;
+  commandText: string;
+};
+
 export type CommandComposerModel = {
   title: string;
   description: string;
@@ -62,12 +84,23 @@ export type ShellViewModel = {
     entries: LeftPanelEntry[];
   };
   scene: {
+    sceneId: string;
     kicker: string;
     title: string;
     description: string;
     timeLabel: string;
     locationLabel: string;
     runModeLabel: string;
+  };
+  movement: {
+    title: string;
+    description: string;
+    items: MovementItem[];
+  };
+  opportunities: {
+    title: string;
+    description: string;
+    items: OpportunityItem[];
   };
   feed: SceneFeedEntry[];
   suggestions: CommandSuggestion[];

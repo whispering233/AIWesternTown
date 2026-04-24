@@ -2,14 +2,24 @@
   "name": "@ai-western-town/ui-sdk",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "scripts": {
     "build": "pnpm --filter @ai-western-town/contracts build && tsc -p tsconfig.json",
     "typecheck": "pnpm --filter @ai-western-town/contracts build && tsc -p tsconfig.json --noEmit",
-    "test": "node -e \"console.log('No tests yet for @ai-western-town/ui-sdk')\""
+    "test": "pnpm run build && node --test dist/**/*.test.js"
   },
   "dependencies": {
     "@ai-western-town/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.1"
   }
 }

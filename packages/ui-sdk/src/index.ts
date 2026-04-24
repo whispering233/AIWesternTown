@@ -1,8 +1,4 @@
-import {
-  createLocalSessionResponseSchema,
-  localHostStreamEventSchema,
-  submitLocalCommandResponseSchema
-} from "@ai-western-town/contracts";
+import * as contracts from "@ai-western-town/contracts";
 
 import type {
   CreateLocalSessionRequest,
@@ -31,6 +27,15 @@ export type LocalHostClientOptions = {
 };
 
 export type LocalHostClient = ReturnType<typeof createLocalHostClient>;
+export {
+  createLocalSessionRuntime
+} from "./local-session-runtime.js";
+export type {
+  LocalSessionRuntimeClient,
+  LocalSessionRuntimeConnectionState,
+  LocalSessionRuntimeOptions,
+  LocalSessionRuntimeState
+} from "./local-session-runtime.js";
 
 export function createLocalHostClient(options: LocalHostClientOptions) {
   const fetchFn = options.fetchFn ?? fetch;
@@ -48,7 +53,7 @@ export function createLocalHostClient(options: LocalHostClientOptions) {
       });
       await assertOk(response);
 
-      return createLocalSessionResponseSchema.parse(await response.json());
+      return contracts.createLocalSessionResponseSchema.parse(await response.json());
     },
 
     async submitCommand(
@@ -67,7 +72,7 @@ export function createLocalHostClient(options: LocalHostClientOptions) {
       );
       await assertOk(response);
 
-      return submitLocalCommandResponseSchema.parse(await response.json());
+      return contracts.submitLocalCommandResponseSchema.parse(await response.json());
     },
 
     subscribeToSessionEvents(
@@ -87,7 +92,9 @@ export function createLocalHostClient(options: LocalHostClientOptions) {
 
       const handleMessage = (event: EventSourceMessage) => {
         try {
-          handlers.onEvent(localHostStreamEventSchema.parse(JSON.parse(event.data)));
+          handlers.onEvent(
+            contracts.localHostStreamEventSchema.parse(JSON.parse(event.data))
+          );
         } catch (error) {
           handlers.onError?.(error);
         }

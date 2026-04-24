@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { spawn } from "node:child_process";
 import type { AddressInfo } from "node:net";
+import { createServer } from "node:net";
+import { once } from "node:events";
 
 import type {
   CreateLocalSessionResponse,
@@ -14,7 +17,7 @@ import {
   submitLocalCommandResponseSchema
 } from "@ai-western-town/contracts";
 
-import { buildLocalHostServer } from "./server";
+import { buildLocalHostServer } from "./server.js";
 
 test("creates sessions, accepts commands, and emits SSE events", async () => {
   const server = buildLocalHostServer({
@@ -114,6 +117,125 @@ test("creates sessions, accepts commands, and emits SSE events", async () => {
   }
 });
 
+test("responds to local web CORS preflight and session creation requests", async () => {
+  const server = buildLocalHostServer({
+    logger: false
+  });
+
+  await server.listen({
+    port: 0,
+    host: "127.0.0.1"
+  });
+
+  const baseUrl = `http://127.0.0.1:${getAddressInfo(server.server.address()).port}`;
+
+  try {
+    const preflightResponse = await fetch(`${baseUrl}/sessions`, {
+      method: "OPTIONS",
+      headers: {
+        origin: "http://127.0.0.1:4173",
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "content-type"
+      }
+    });
+
+    assert.equal(preflightResponse.status, 204);
+    assert.equal(
+      preflightResponse.headers.get("access-control-allow-origin"),
+      "http://127.0.0.1:4173"
+    );
+
+    const createResponse = await fetch(`${baseUrl}/sessions`, {
+      method: "POST",
+      headers: {
+        origin: "http://127.0.0.1:4173",
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({})
+    });
+
+    assert.equal(createResponse.status, 201);
+    assert.equal(
+      createResponse.headers.get("access-control-allow-origin"),
+      "http://127.0.0.1:4173"
+    );
+  } finally {
+    await server.close();
+  }
+});
+
+test("includes CORS headers on SSE event streams for the local web client", async () => {
+  const server = buildLocalHostServer({
+    logger: false
+  });
+
+  await server.listen({
+    port: 0,
+    host: "127.0.0.1"
+  });
+
+  const baseUrl = `http://127.0.0.1:${getAddressInfo(server.server.address()).port}`;
+
+  try {
+    const createResponse = await fetch(`${baseUrl}/sessions`, {
+      method: "POST",
+      headers: {
+        origin: "http://127.0.0.1:4173",
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({})
+    });
+    const createPayload =
+      createLocalSessionResponseSchema.parse(
+        (await createResponse.json()) as CreateLocalSessionResponse
+      );
+
+    const streamResponse = await fetch(
+      `${baseUrl}/sessions/${createPayload.session.sessionId}/events`,
+      {
+        headers: {
+          origin: "http://127.0.0.1:4173"
+        }
+      }
+    );
+
+    try {
+      assert.equal(streamResponse.status, 200);
+      assert.equal(
+        streamResponse.headers.get("access-control-allow-origin"),
+        "http://127.0.0.1:4173"
+      );
+    } finally {
+      await streamResponse.body?.cancel();
+    }
+  } finally {
+    await server.close();
+  }
+});
+
+test("entrypoint starts the local host when executed with node", async () => {
+  const port = await getAvailablePort();
+  const child = spawn(process.execPath, ["dist/index.js"], {
+    cwd: new URL("..", import.meta.url),
+    env: {
+      ...process.env,
+      LOCAL_HOST_PORT: String(port),
+      LOCAL_HOST_BIND: "127.0.0.1"
+    },
+    stdio: "ignore"
+  });
+
+  try {
+    const response = await waitForSessionResponse(`http://127.0.0.1:${port}`);
+    assert.equal(response.status, 201);
+  } finally {
+    if (child.exitCode === null) {
+      child.kill();
+      await once(child, "exit");
+    }
+  }
+});
+
 async function collectSseEvents(
   response: Response,
   targetCount: number
@@ -166,4 +288,63 @@ function getAddressInfo(address: string | AddressInfo | null): AddressInfo {
   }
 
   return address;
+}
+
+async function getAvailablePort(): Promise<number> {
+  const server = createServer();
+
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => resolve());
+  });
+
+  const address = server.address();
+  if (address === null || typeof address === "string") {
+    server.close();
+    throw new Error("Expected a TCP port while probing for an available port");
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve();
+    });
+  });
+
+  return address.port;
+}
+
+async function waitForSessionResponse(baseUrl: string): Promise<Response> {
+  const startedAt = Date.now();
+  let lastError: unknown;
+
+  while (Date.now() - startedAt < 10_000) {
+    try {
+      const response = await fetch(`${baseUrl}/sessions`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({})
+      });
+
+      if (response.ok) {
+        return response;
+      }
+
+      lastError = new Error(`Unexpected status: ${response.status}`);
+    } catch (error) {
+      lastError = error;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Timed out waiting for the local-host entrypoint to listen");
 }

@@ -6,7 +6,7 @@ import {
   metadataSchema,
   tagSchema,
   tickSchema
-} from "./base";
+} from "./base.js";
 
 export const playerCommandTypeSchema = z.enum([
   "dialogue",
