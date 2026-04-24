@@ -12,7 +12,9 @@ test("createMoveCommand builds a non-ticking travel envelope", () => {
   const command = createMoveCommand("hotel_lobby", 3);
 
   assert.equal(command.commandType, "move");
+  assert.equal(command.parsedAction.actionClass, "travel");
   assert.equal(command.parsedAction.actionType, "travel");
+  assert.equal(command.parsedAction.targetSceneId, "hotel_lobby");
   assert.equal(command.parsedAction.targetLocationId, "hotel_lobby");
   assert.equal(command.issuedAtTick, 3);
   assert.equal(command.consumesTick, false);
@@ -27,7 +29,9 @@ test("createObserveCommand builds a ticking observe envelope", () => {
   );
 
   assert.equal(command.commandType, "observe");
+  assert.equal(command.parsedAction.actionClass, "investigate");
   assert.equal(command.parsedAction.actionType, "observe-doctor");
+  assert.equal(command.parsedAction.targetNpcId, "doctor");
   assert.equal(command.parsedAction.targetActorId, "doctor");
   assert.equal(command.metadata?.commandText, "观察医生的反应");
   assert.equal(command.issuedAtTick, 5);
@@ -48,6 +52,8 @@ test("createOpportunityCommand maps approach actions to social commands", () => 
   );
 
   assert.equal(command.commandType, "social");
+  assert.equal(command.parsedAction.actionClass, "intervene");
+  assert.equal(command.parsedAction.targetSceneId, "saloon");
   assert.equal(command.parsedAction.targetLocationId, "saloon");
   assert.equal(command.metadata?.commandText, "接近酒保，看看她刚才在留意谁");
 });
@@ -60,7 +66,9 @@ test("createFreeTextCommand keeps arbitrary input submit-able", () => {
   );
 
   assert.equal(command.commandType, "observe");
+  assert.equal(command.parsedAction.actionClass, "investigate");
   assert.equal(command.parsedAction.actionType, "free_text");
+  assert.equal(command.parsedAction.targetSceneId, "hotel_lobby");
   assert.equal(command.parsedAction.targetLocationId, "hotel_lobby");
   assert.equal(command.metadata?.commandText, "跟上刚离开大厅的医生");
 });

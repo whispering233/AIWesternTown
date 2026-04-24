@@ -4,13 +4,7 @@ import Fastify, {
   type FastifyRequest
 } from "fastify";
 
-import {
-  createLocalSessionRequestSchema,
-  createLocalSessionResponseSchema,
-  localHostStreamEventSchema,
-  submitLocalCommandRequestSchema,
-  submitLocalCommandResponseSchema
-} from "@ai-western-town/contracts";
+import * as contracts from "@ai-western-town/contracts";
 
 import {
   InMemoryLocalSessionStore,
@@ -74,9 +68,11 @@ export function buildLocalHostServer(
   });
 
   server.post("/sessions", async (request, reply) => {
-    const body = createLocalSessionRequestSchema.parse(request.body ?? {});
+    const body = contracts.createLocalSessionRequestSchema.parse(
+      request.body ?? {}
+    );
     const session = sessionStore.createSession(body);
-    const response = createLocalSessionResponseSchema.parse({
+    const response = contracts.createLocalSessionResponseSchema.parse({
       session
     });
 
@@ -89,8 +85,10 @@ export function buildLocalHostServer(
       request: FastifyRequest<{ Params: SessionParams }>,
       reply: FastifyReply
     ) => {
-      const body = submitLocalCommandRequestSchema.parse(request.body ?? {});
-      const response = submitLocalCommandResponseSchema.parse(
+      const body = contracts.submitLocalCommandRequestSchema.parse(
+        request.body ?? {}
+      );
+      const response = contracts.submitLocalCommandResponseSchema.parse(
         sessionStore.submitCommand(request.params.sessionId, body.playerCommand)
       );
 
@@ -137,7 +135,7 @@ export function buildLocalHostServer(
 }
 
 function writeSseEvent(reply: FastifyReply, event: unknown): void {
-  const payload = localHostStreamEventSchema.parse(event);
+  const payload = contracts.localHostStreamEventSchema.parse(event);
 
   reply.raw.write(`id: ${payload.sequence}\n`);
   reply.raw.write(`event: ${payload.type}\n`);

@@ -11,7 +11,9 @@ export function createMoveCommand(
     commandId: crypto.randomUUID(),
     commandType: "move",
     parsedAction: {
+      actionClass: "travel",
       actionType: "travel",
+      targetSceneId,
       targetLocationId: targetSceneId,
       tags: ["travel"]
     },
@@ -31,16 +33,19 @@ export function createObserveCommand(
   targetLocationId?: string
 ): PlayerCommandEnvelope {
   const parsedAction: PlayerCommandEnvelope["parsedAction"] = {
+    actionClass: "investigate",
     actionType,
     tags: ["observe"]
   };
 
   if (targetActorId !== undefined) {
     parsedAction.targetActorId = targetActorId;
+    parsedAction.targetNpcId = targetActorId;
   }
 
   if (targetLocationId !== undefined) {
     parsedAction.targetLocationId = targetLocationId;
+    parsedAction.targetSceneId = targetLocationId;
   }
 
   return {
@@ -60,17 +65,18 @@ export function createOpportunityCommand(
   issuedAtTick: number,
   targetLocationId?: string
 ): PlayerCommandEnvelope {
-  const commandType =
-    opportunity.kind === "approach" || opportunity.kind === "interrupt"
-      ? "social"
-      : "observe";
+  const isSocialOpportunity =
+    opportunity.kind === "approach" || opportunity.kind === "interrupt";
+  const commandType = isSocialOpportunity ? "social" : "observe";
   const parsedAction: PlayerCommandEnvelope["parsedAction"] = {
+    actionClass: isSocialOpportunity ? "intervene" : "investigate",
     actionType: opportunity.kind,
     tags: [opportunity.kind]
   };
 
   if (targetLocationId !== undefined) {
     parsedAction.targetLocationId = targetLocationId;
+    parsedAction.targetSceneId = targetLocationId;
   }
 
   return {
@@ -91,12 +97,14 @@ export function createFreeTextCommand(
   targetLocationId?: string
 ): PlayerCommandEnvelope {
   const parsedAction: PlayerCommandEnvelope["parsedAction"] = {
+    actionClass: "investigate",
     actionType: "free_text",
     tags: ["free_text"]
   };
 
   if (targetLocationId !== undefined) {
     parsedAction.targetLocationId = targetLocationId;
+    parsedAction.targetSceneId = targetLocationId;
   }
 
   return {
