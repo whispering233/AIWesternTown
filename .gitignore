@@ -9,7 +9,6 @@ node_modules/
 .turbo/
 dist/
 
-docs/superpowers/
 .playwright-cli/
 output/playwright/
 packages/persistence/local/
