@@ -163,6 +163,8 @@ export function act(input: ActInput): ActionExecutionResult {
   }
 
   const visibleLine = buildVisibleLine(input, outcome);
+  const stateMutations =
+    outcome === "success" || outcome === "partial" ? buildStateMutations(input) : [];
   const emittedEvents =
     outcome === "failed" && input.selectionResult.executionMode === "hold"
       ? []
@@ -177,7 +179,7 @@ export function act(input: ActInput): ActionExecutionResult {
     outcome,
     outcomeReasonTags,
     consumedTick: input.consumeTickByDefault ?? 1,
-    stateMutations: buildStateMutations(input),
+    stateMutations,
     emittedEvents,
     visibleOutcome: {
       ...visibleLine,

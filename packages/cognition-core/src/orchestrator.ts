@@ -11,10 +11,17 @@ import type { CognitionLiteRunInput, CognitionLiteRunResult } from "./types";
 export function runCognitionLite(input: CognitionLiteRunInput): CognitionLiteRunResult {
   const stageFlags = deriveCognitionLiteStageFlags(input.plannedExecution);
   const perceiveResult = perceive(input.perceiveInput);
-  const appraiseResult = appraise({
-    ...input.appraiseInput,
-    perceivedItems: stageFlags.appraise ? perceiveResult.perceivedItems : []
-  });
+  let appraiseResult: CognitionLiteRunResult["appraise"];
+  if (stageFlags.appraise) {
+    if (!input.appraiseInput) {
+      throw new Error("appraiseInput is required when appraise is enabled.");
+    }
+
+    appraiseResult = appraise({
+      ...input.appraiseInput,
+      perceivedItems: perceiveResult.perceivedItems
+    });
+  }
 
   let actionSelectionResult: CognitionLiteRunResult["actionSelectionResult"];
   if (stageFlags.action_selection) {
@@ -24,7 +31,7 @@ export function runCognitionLite(input: CognitionLiteRunInput): CognitionLiteRun
 
     actionSelectionResult = selectAction({
       ...input.actionSelectionInput,
-      appraisalResults: appraiseResult.appraisalResults
+      appraisalResults: appraiseResult?.appraisalResults ?? []
     });
   }
 

@@ -454,7 +454,7 @@ export type SchedulerBridgeMeta = {
 export type CognitionLiteRunInput = {
   npcId: string;
   perceiveInput: PerceiveInput;
-  appraiseInput: Omit<AppraiseInput, "perceivedItems">;
+  appraiseInput?: Omit<AppraiseInput, "perceivedItems">;
   actionSelectionInput?: Omit<ActionSelectionInput, "appraisalResults">;
   actInput?: Omit<ActInput, "selectionResult">;
   plannedExecution?: PlannedNpcExecution;
@@ -465,7 +465,7 @@ export type CognitionLiteRunResult = {
   stageFlags: CognitionLiteStageFlags;
   schedulerBridge?: SchedulerBridgeMeta;
   perceive: PerceiveResult;
-  appraise: AppraiseResult;
+  appraise?: AppraiseResult;
   actionSelectionResult?: ActionSelectionResult;
   executionResult?: ActionExecutionResult;
 };

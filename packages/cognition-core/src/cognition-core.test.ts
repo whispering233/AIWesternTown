@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import type { WorldEventWindow } from "@ai-western-town/contracts";
 
-import { deriveCognitionLiteStageFlags, runCognitionLite } from "./index";
+import { act, deriveCognitionLiteStageFlags, runCognitionLite } from "./index";
 import type { CognitionLiteRunInput } from "./types";
 
 function buildEventWindow(tick: number): WorldEventWindow {
@@ -289,7 +289,9 @@ test("light scheduler plan stops before action selection and act", () => {
   assert.equal(result.stageFlags.act, false);
   assert.equal(result.actionSelectionResult, undefined);
   assert.equal(result.executionResult, undefined);
-  assert.equal(result.appraise.appraisalResults.length > 0, true);
+  const appraiseResult = result.appraise;
+  assert.ok(appraiseResult);
+  assert.equal(appraiseResult.appraisalResults.length > 0, true);
 });
 
 test("deriveCognitionLiteStageFlags defaults to full four-stage execution without scheduler input", () => {
@@ -301,4 +303,60 @@ test("deriveCognitionLiteStageFlags defaults to full four-stage execution withou
     action_selection: true,
     act: true
   });
+});
+
+test("perceive-only scheduler plan does not require appraise input", () => {
+  const input = buildBaseInput() as {
+    npcId: string;
+    perceiveInput: CognitionLiteRunInput["perceiveInput"];
+    plannedExecution?: CognitionLiteRunInput["plannedExecution"];
+    appraiseInput?: CognitionLiteRunInput["appraiseInput"];
+    actionSelectionInput?: CognitionLiteRunInput["actionSelectionInput"];
+    actInput?: CognitionLiteRunInput["actInput"];
+  };
+  input.plannedExecution = {
+    npcId: "npc-doctor",
+    executionClass: "light",
+    runStages: ["perceive"],
+    escalationReasonTags: ["foreground_reactive"]
+  };
+  delete input.appraiseInput;
+  delete input.actionSelectionInput;
+  delete input.actInput;
+
+  const result = runCognitionLite(input as CognitionLiteRunInput);
+
+  assert.equal(result.stageFlags.appraise, false);
+  assert.equal(result.appraise, undefined);
+});
+
+test("blocked act does not emit state mutations", () => {
+  const result = act({
+    npcId: "npc-doctor",
+    tick: 184,
+    sceneId: "saloon",
+    selectionResult: {
+      chosenActionId: "act-move",
+      actionType: "move",
+      verb: "backs away",
+      targetActorIds: [],
+      targetObjectIds: [],
+      targetLocationId: "clinic",
+      visibility: "public",
+      executionMode: "immediate",
+      styleTags: ["guarded"],
+      expectedEffectTags: ["reduce_exposure"],
+      riskScore: 0.4,
+      goalAlignment: 0.6,
+      confidence: 0.7,
+      fallbackActionIds: [],
+      selectionReason: "test"
+    },
+    availableActorIds: [],
+    availableObjectIds: [],
+    reachableLocationIds: []
+  });
+
+  assert.equal(result.outcome, "blocked");
+  assert.deepEqual(result.stateMutations, []);
 });
