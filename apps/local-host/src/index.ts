@@ -1,7 +1,10 @@
-import { buildLocalHostServer } from "./server";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-export * from "./server";
-export * from "./session-store";
+import { buildLocalHostServer } from "./server.js";
+
+export * from "./server.js";
+export * from "./session-store.js";
 
 async function main(): Promise<void> {
   const server = buildLocalHostServer();
@@ -14,6 +17,9 @@ async function main(): Promise<void> {
   });
 }
 
-if (require.main === module) {
+const executedFilePath = process.argv[1] ? resolve(process.argv[1]) : undefined;
+const moduleFilePath = fileURLToPath(import.meta.url);
+
+if (executedFilePath && executedFilePath === moduleFilePath) {
   void main();
 }

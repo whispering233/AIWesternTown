@@ -6,7 +6,7 @@ import {
   metadataSchema,
   tagSchema,
   tickSchema
-} from "./base";
+} from "./base.js";
 
 export const eventHeatLevelSchema = z.enum(["ordinary", "high", "interrupt"]);
 

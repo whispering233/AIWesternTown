@@ -5,10 +5,10 @@ import {
   metadataSchema,
   timestampSchema,
   tickSchema
-} from "./base";
-import { playerCommandEnvelopeSchema } from "./player-command";
-import { tickTraceRecordSchema } from "./tick-trace";
-import { worldEventRecordSchema } from "./world-event";
+} from "./base.js";
+import { playerCommandEnvelopeSchema } from "./player-command.js";
+import { tickTraceRecordSchema } from "./tick-trace.js";
+import { worldEventRecordSchema } from "./world-event.js";
 
 export const localSessionStatusSchema = z.enum(["active", "closed"]);
 

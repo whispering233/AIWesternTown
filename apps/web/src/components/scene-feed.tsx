@@ -12,7 +12,7 @@ export function SceneFeed({ entries }: SceneFeedProps) {
           <p className="eyebrow">Scene Feed</p>
           <h3>场景反馈</h3>
           <p className="feed-subtitle">
-            当前只展示 mock view model，后续可替换为 SSE 驱动的会话流。
+            这里只保留结果流，明确区分玩家输入、宿主接收和世界后果。
           </p>
         </div>
       </div>

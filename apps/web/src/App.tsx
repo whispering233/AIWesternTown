@@ -1,58 +1,133 @@
-import { MouseEvent, startTransition, useState } from "react";
+import { MouseEvent, useEffect, useRef, useState } from "react";
+import * as localUiSdk from "@ai-western-town/ui-sdk";
 import { CommandComposer } from "./components/command-composer";
 import { DebugDock } from "./components/debug-dock";
 import { LeftPanelSlot } from "./components/left-panel-slot";
+import { PlayableLoopPanel } from "./components/playable-loop-panel";
 import { SceneFeed } from "./components/scene-feed";
+import { buildLiveShellViewModel } from "./view-model/live-shell-view-model";
 import {
-  buildMockCommandEcho,
-  createMockShellViewModel
-} from "./view-model/mock-shell-view-model";
-import type { SceneFeedEntry } from "./view-model/shell-view-model";
+  createFreeTextCommand,
+  createMoveCommand,
+  createOpportunityCommand
+} from "./view-model/player-command-factory";
+import type {
+  MovementItem,
+  OpportunityItem,
+  ShellViewModel
+} from "./view-model/shell-view-model";
+
+type LocalSessionRuntimeState = localUiSdk.LocalSessionRuntimeState;
+
+const initialRuntimeState: LocalSessionRuntimeState = {
+  connectionState: "idle",
+  initialized: false,
+  streamEvents: []
+};
 
 export function App() {
-  const initialViewModel = createMockShellViewModel();
-  const [viewModel, setViewModel] = useState(initialViewModel);
+  const runtimeRef =
+    useRef<ReturnType<typeof localUiSdk.createLocalSessionRuntime> | null>(null);
+  const [runtimeState, setRuntimeState] =
+    useState<LocalSessionRuntimeState>(initialRuntimeState);
+  const [draft, setDraft] = useState("");
   const [isDesktopLeftVisible, setIsDesktopLeftVisible] = useState(true);
   const [isDesktopDebugVisible, setIsDesktopDebugVisible] = useState(true);
   const [isLeftDrawerOpen, setIsLeftDrawerOpen] = useState(false);
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false);
 
-  function handleCommandSubmit(commandText: string): void {
-    startTransition(() => {
-      setViewModel((currentViewModel) => ({
-        ...currentViewModel,
-        feed: [
-          ...currentViewModel.feed,
-          {
-            id: `player-${Date.now()}`,
-            role: "player",
-            label: "你",
-            timestamp: "刚刚",
-            body: commandText
-          },
-          buildMockCommandEcho(commandText)
-        ] satisfies SceneFeedEntry[],
-        composer: {
-          ...currentViewModel.composer,
-          draft: "",
-          lastSubmittedCommand: commandText
-        }
+  useEffect(() => {
+    const client = localUiSdk.createLocalHostClient({
+      baseUrl: import.meta.env.VITE_LOCAL_HOST_URL ?? "http://127.0.0.1:8787"
+    });
+    const runtime = localUiSdk.createLocalSessionRuntime({
+      client
+    });
+    runtimeRef.current = runtime;
+
+    const unsubscribe = runtime.subscribe((nextState) => {
+      setRuntimeState(nextState);
+    });
+
+    void runtime.initialize().catch((error) => {
+      setRuntimeState((currentState) => ({
+        ...currentState,
+        connectionState: "connecting",
+        initialized: true,
+        lastError: error
       }));
     });
+
+    return () => {
+      unsubscribe();
+      runtime.dispose();
+      runtimeRef.current = null;
+    };
+  }, []);
+
+  const nextViewModel = buildLiveShellViewModel(runtimeState);
+  const viewModel: ShellViewModel = {
+    ...nextViewModel,
+    composer: {
+      ...nextViewModel.composer,
+      draft
+    }
+  };
+
+  async function handlePlayerCommand(
+    playerCommand: ReturnType<typeof createMoveCommand>
+  ): Promise<void> {
+    if (!runtimeRef.current) {
+      return;
+    }
+
+    setDraft("");
+
+    try {
+      await runtimeRef.current.submitCommand(playerCommand);
+    } catch (error) {
+      setRuntimeState((currentState) => ({
+        ...currentState,
+        connectionState: "connecting",
+        lastError: error
+      }));
+    }
+  }
+
+  function handleCommandSubmit(commandText: string): void {
+    void handlePlayerCommand(
+      createFreeTextCommand(commandText, runtimeState.session?.worldTick ?? 0, viewModel.scene.sceneId)
+    );
   }
 
   function handleSuggestionSelect(commandText: string): void {
-    handleCommandSubmit(commandText);
+    void handlePlayerCommand(
+      createFreeTextCommand(commandText, runtimeState.session?.worldTick ?? 0, viewModel.scene.sceneId)
+    );
+  }
+
+  function handleMovementSelect(item: MovementItem): void {
+    void handlePlayerCommand(
+      createMoveCommand(
+        item.sceneId,
+        runtimeState.session?.worldTick ?? 0,
+        item.commandText
+      )
+    );
+  }
+
+  function handleOpportunitySelect(item: OpportunityItem): void {
+    void handlePlayerCommand(
+      createOpportunityCommand(
+        item,
+        runtimeState.session?.worldTick ?? 0,
+        viewModel.scene.sceneId
+      )
+    );
   }
 
   function handleDraftChange(nextDraft: string): void {
-    setViewModel((currentViewModel) => ({
-      ...currentViewModel,
-      composer: {
-        ...currentViewModel.composer,
-        draft: nextDraft
-      }
-    }));
+    setDraft(nextDraft);
   }
 
   function toggleDebugDrawer(): void {
@@ -190,6 +265,13 @@ export function App() {
                 </div>
               </dl>
             </section>
+
+            <PlayableLoopPanel
+              movement={viewModel.movement.items}
+              opportunities={viewModel.opportunities.items}
+              onMovementSelect={handleMovementSelect}
+              onOpportunitySelect={handleOpportunitySelect}
+            />
 
             <SceneFeed entries={viewModel.feed} />
 

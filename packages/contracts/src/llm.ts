@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { identifierSchema, metadataSchema } from "./base";
+import { identifierSchema, metadataSchema } from "./base.js";
 
 export const taskKindSchema = z.enum([
   "appraise_refine",

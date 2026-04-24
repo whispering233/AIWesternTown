@@ -15,7 +15,7 @@ import {
 import {
   InMemoryLocalSessionStore,
   SessionNotFoundError
-} from "./session-store";
+} from "./session-store.js";
 
 type SessionParams = {
   sessionId: string;
@@ -33,6 +33,17 @@ export function buildLocalHostServer(
     options.sessionStore ?? new InMemoryLocalSessionStore();
   const server = Fastify({
     logger: options.logger ?? true
+  });
+
+  server.addHook("onRequest", (request, reply, done) => {
+    applyCorsHeaders(request, reply);
+
+    if (request.method === "OPTIONS") {
+      void reply.code(204).send();
+      return;
+    }
+
+    done();
   });
 
   server.setErrorHandler((error, _request, reply) => {
@@ -104,6 +115,11 @@ export function buildLocalHostServer(
       reply.raw.setHeader("Content-Type", "text/event-stream; charset=utf-8");
       reply.raw.setHeader("Cache-Control", "no-cache, no-transform");
       reply.raw.setHeader("Connection", "keep-alive");
+      reply.raw.setHeader(
+        "Access-Control-Allow-Origin",
+        getAllowedOrigin(request.headers.origin)
+      );
+      reply.raw.setHeader("Vary", "Origin");
       reply.raw.flushHeaders?.();
 
       writeSseEvent(reply, snapshotEvent);
@@ -126,4 +142,23 @@ function writeSseEvent(reply: FastifyReply, event: unknown): void {
   reply.raw.write(`id: ${payload.sequence}\n`);
   reply.raw.write(`event: ${payload.type}\n`);
   reply.raw.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+function applyCorsHeaders(
+  request: FastifyRequest,
+  reply: FastifyReply
+): void {
+  reply.header(
+    "Access-Control-Allow-Origin",
+    getAllowedOrigin(request.headers.origin)
+  );
+  reply.header("Vary", "Origin");
+  reply.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  reply.header("Access-Control-Allow-Headers", "content-type");
+}
+
+function getAllowedOrigin(originHeader: string | string[] | undefined): string {
+  return typeof originHeader === "string" && originHeader.length > 0
+    ? originHeader
+    : "*";
 }

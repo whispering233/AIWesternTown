@@ -10,7 +10,7 @@ import {
   providerRequestSchema,
   taskKindSchema,
   worldEventWindowSchema
-} from "./index";
+} from "./index.js";
 
 test("accepts valid item player command envelopes", () => {
   const result = playerCommandEnvelopeSchema.safeParse({
