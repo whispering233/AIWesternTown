@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>AIWesternTown Game UI System</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="hero">
+        <div class="hero-meta">
+          <p class="eyebrow">Game UI System</p>
+          <p class="eyebrow">Local Design Reference</p>
+        </div>
+
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <h1>AIWesternTown Game UI System</h1>
+            <p class="lead">
+              这是一套独立于工程实现的本地设计参考资产，用来稳定定义
+              `World Rail / Play Surface / System Rail` 的样式语言、布局规则和页面骨架。
+            </p>
+          </div>
+
+          <dl class="summary-list">
+            <div>
+              <dt>目标</dt>
+              <dd>先产出规范、布局说明和样式示例，再指导工程实现。</dd>
+            </div>
+            <div>
+              <dt>核心原则</dt>
+              <dd>左栏承载世界信息，主栏只保留当前回合，右栏承接次级系统信息。</dd>
+            </div>
+            <div>
+              <dt>交付形态</dt>
+              <dd>文档 + 本地静态示例，不混入产品入口结构。</dd>
+            </div>
+          </dl>
+        </div>
+      </header>
+
+      <main class="content">
+        <section class="section">
+          <div class="section-heading">
+            <p class="eyebrow">Foundations</p>
+            <h2>样式与布局基线</h2>
+            <p class="section-copy">
+              保留纸面感和西部卷宗气质，通过留白、边框和分隔线建立秩序，而不是通过厚重卡片堆砌信息。
+            </p>
+          </div>
+
+          <div class="rule-grid">
+            <article class="rule">
+              <span class="label">Canvas</span>
+              <h3>1600 / 1520 / 40</h3>
+              <p>设计基准宽度 1600，主容器最大宽度 1520，左右安全边距 40。</p>
+            </article>
+            <article class="rule">
+              <span class="label">Shell</span>
+              <h3>World / Play / System</h3>
+              <p>固定三栏语法，防止一切信息都挤入主栏。</p>
+            </article>
+            <article class="rule">
+              <span class="label">Panel</span>
+              <h3>Eyebrow → Title → Description</h3>
+              <p>所有 panel 使用同一套头部语法，结构先于装饰。</p>
+            </article>
+          </div>
+
+          <div class="token-grid">
+            <article class="token-block">
+              <span class="label">Color</span>
+              <div class="swatches">
+                <span class="swatch page">Page</span>
+                <span class="swatch soft">Soft</span>
+                <span class="swatch text">Text</span>
+                <span class="swatch rule">Rule</span>
+              </div>
+            </article>
+
+            <article class="token-block">
+              <span class="label">Spacing</span>
+              <ul class="spacing-list">
+                <li><strong>32</strong><span>大区块</span></li>
+                <li><strong>24</strong><span>主要分组</span></li>
+                <li><strong>16</strong><span>常规分组</span></li>
+                <li><strong>8</strong><span>紧凑项</span></li>
+              </ul>
+            </article>
+
+            <article class="token-block">
+              <span class="label">Typography</span>
+              <div class="type-sample">
+                <h3>Serif Headline</h3>
+                <p>正文保持克制，utility text 服务扫描和状态识别。</p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-heading">
+            <p class="eyebrow">Desktop Shell</p>
+            <h2>Desktop First 三栏蓝图</h2>
+            <p class="section-copy">
+              页面先按 `World Rail / Play Surface / System Rail`
+              分区，再决定组件长相。这样可以先把职责稳定下来，避免主栏被信息流和索引内容挤爆。
+            </p>
+          </div>
+
+          <div class="zone-grid">
+            <article class="zone-card">
+              <span class="label">320-360</span>
+              <h3>World Rail</h3>
+              <p>世界事件、状态、日志、索引统一收口到左栏，默认使用 tabs 维持清晰分层。</p>
+            </article>
+
+            <article class="zone-card zone-card-main">
+              <span class="label">760-840</span>
+              <h3>Play Surface</h3>
+              <p>主栏只处理当前回合最值得玩家立刻关注的内容，围绕行动、结果和输入构成单任务节奏。</p>
+            </article>
+
+            <article class="zone-card">
+              <span class="label">280-320</span>
+              <h3>System Rail</h3>
+              <p>右栏承接系统上下文、目标、风险和 debug，不反客为主，不变成第二主栏。</p>
+            </article>
+          </div>
+
+          <div class="decision-grid">
+            <article class="decision-card">
+              <span class="label">Placement</span>
+              <h3>进入主栏的条件</h3>
+              <ul>
+                <li>它必须直接服务当前回合。</li>
+                <li>它必须支持立刻决策或立刻反馈。</li>
+                <li>如果更适合回看、检索或归档，就不要进主栏。</li>
+              </ul>
+            </article>
+
+            <article class="decision-card">
+              <span class="label">Overflow</span>
+              <h3>主栏防过载规则</h3>
+              <ul>
+                <li>首屏只允许一个 hero。</li>
+                <li>首屏最多两个较重的信息块。</li>
+                <li>完整历史流、索引和长文案优先拆到左栏或详情页。</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-heading">
+            <p class="eyebrow">Main Shell</p>
+            <h2>主界面布局示例</h2>
+            <p class="section-copy">
+              这不是产品页，而是设计样式示例。目的是明确左栏、主栏、右栏各自应该承载什么。
+            </p>
+          </div>
+
+          <div class="shell-demo">
+            <aside class="world-rail">
+              <div class="panel-head">
+                <p class="eyebrow">World Rail</p>
+                <h3>世界侧栏</h3>
+                <p>世界状态、事件流和日志都收在这里，不打断当前回合交互。</p>
+              </div>
+
+              <div class="tab-row" role="tablist" aria-label="世界栏标签">
+                <button class="tab is-active" type="button" data-tab="status">状态</button>
+                <button class="tab" type="button" data-tab="events">事件流</button>
+                <button class="tab" type="button" data-tab="journal">日志</button>
+              </div>
+
+              <div class="tab-panels">
+                <section class="tab-panel is-active" data-panel="status">
+                  <article class="mini-block">
+                    <span class="label">当前位置</span>
+                    <h4>Rail House Hotel Lobby</h4>
+                    <p>适合先观察再决定是否追人。</p>
+                  </article>
+                  <article class="mini-block">
+                    <span class="label">运行模式</span>
+                    <h4>free_explore</h4>
+                    <p>当前不进入强制对话，允许先收集线索。</p>
+                  </article>
+                </section>
+
+                <section class="tab-panel" data-panel="events">
+                  <article class="mini-block">
+                    <span class="label">玩家输入</span>
+                    <p>观察医生的反应。</p>
+                  </article>
+                  <article class="mini-block">
+                    <span class="label">世界后果</span>
+                    <p>医生先看向楼梯，再移开视线。</p>
+                  </article>
+                </section>
+
+                <section class="tab-panel" data-panel="journal">
+                  <article class="mini-block">
+                    <span class="label">角色</span>
+                    <p>Eliza Wynn / Mara Holt / Jonah Reed</p>
+                  </article>
+                  <article class="mini-block">
+                    <span class="label">线索</span>
+                    <p>楼梯口停顿、窗帘突然落下、站台低语。</p>
+                  </article>
+                </section>
+              </div>
+            </aside>
+
+            <section class="play-surface">
+              <article class="hero-panel">
+                <div>
+                  <p class="eyebrow">Starter Town</p>
+                  <h3>Rail House Hotel Lobby</h3>
+                  <p>
+                    一个适合先站定、再确认谁在躲谁的大厅。主栏只保留当前回合最关键的场景摘要。
+                  </p>
+                </div>
+
+                <dl class="stat-list">
+                  <div>
+                    <dt>时间</dt>
+                    <dd>World Tick 0</dd>
+                  </div>
+                  <div>
+                    <dt>地点</dt>
+                    <dd>Rail House Hotel Lobby</dd>
+                  </div>
+                  <div>
+                    <dt>模式</dt>
+                    <dd>free_explore</dd>
+                  </div>
+                </dl>
+              </article>
+
+              <article class="action-panel">
+                <div class="panel-head">
+                  <p class="eyebrow">Primary Action Frame</p>
+                  <h3>移动与机会</h3>
+                  <p>行动入口是主栏核心，优先于历史流和长说明。</p>
+                </div>
+
+                <div class="chip-row">
+                  <button type="button" class="chip">走进酒馆</button>
+                  <button type="button" class="chip">靠近马厩</button>
+                  <button type="button" class="chip">盯住楼梯口</button>
+                </div>
+
+                <div class="opportunity-list">
+                  <article class="opportunity">
+                    <div>
+                      <span class="label">observe</span>
+                      <h4>观察 Eliza Wynn</h4>
+                      <p>看她是在等人，还是在躲谁。</p>
+                    </div>
+                    <button type="button" class="mini-button">执行</button>
+                  </article>
+                  <article class="opportunity">
+                    <div>
+                      <span class="label">follow</span>
+                      <h4>盯住楼梯口</h4>
+                      <p>如果有人突然离场，这里最先露出破绽。</p>
+                    </div>
+                    <button type="button" class="mini-button">执行</button>
+                  </article>
+                </div>
+              </article>
+
+              <article class="consequence-panel">
+                <div class="panel-head">
+                  <p class="eyebrow">Immediate Consequence</p>
+                  <h3>即时后果</h3>
+                  <p>主栏只保留 1-2 条最值得立刻看见的反馈。</p>
+                </div>
+
+                <div class="consequence-list">
+                  <article class="mini-block">
+                    <span class="label">世界后果</span>
+                    <p>医生先看向楼梯，再快速移开视线。</p>
+                  </article>
+                  <article class="mini-block">
+                    <span class="label">宿主已接收</span>
+                    <p>命令已进入本地宿主，事件流会在左栏持续记录。</p>
+                  </article>
+                </div>
+              </article>
+            </section>
+
+            <aside class="system-rail">
+              <div class="panel-head">
+                <p class="eyebrow">System Rail</p>
+                <h3>系统侧栏</h3>
+                <p>这里只留给调试、trace 和次级系统信息。</p>
+              </div>
+
+              <article class="mini-block">
+                <span class="label">Transport</span>
+                <p>connection=live; session=local-preview</p>
+              </article>
+              <article class="mini-block">
+                <span class="label">Trace</span>
+                <p>runMode=settle; appended=1</p>
+              </article>
+            </aside>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-heading">
+            <p class="eyebrow">Pattern Grammar</p>
+            <h2>通用结构语法</h2>
+            <p class="section-copy">
+              页面家族会扩展，但 panel 语法、tabs 语法和行动语法应尽量稳定，这样设计和实现都更容易复用。
+            </p>
+          </div>
+
+          <div class="pattern-grid">
+            <article class="pattern-card">
+              <span class="label">Panel Grammar</span>
+              <h3>Eyebrow → Title → Description</h3>
+              <p>每个 panel 先明确它只讲一件事，再通过分隔线和留白组织内容，不依赖厚重卡片背景。</p>
+            </article>
+
+            <article class="pattern-card">
+              <span class="label">Tabs Grammar</span>
+              <h3>状态 / 事件流 / 日志</h3>
+              <p>左栏默认三标签页，实时信息、沉淀信息和索引信息不能混写成同一种列表。</p>
+            </article>
+
+            <article class="pattern-card">
+              <span class="label">Action Grammar</span>
+              <h3>3-5 个主动作足够</h3>
+              <p>主要行动入口控制在 3-5 个，高频动作优先露出，其他动作通过分组或详情页承接。</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-heading">
+            <p class="eyebrow">Page Family</p>
+            <h2>页面骨架示例</h2>
+            <p class="section-copy">
+              后续页面应基于同一套语言扩展，而不是重新发明各自的布局。
+            </p>
+          </div>
+
+          <div class="family-grid">
+            <article class="family-card">
+              <span class="label">Scene Detail</span>
+              <h3>场景深读页</h3>
+              <div class="family-map">
+                <span>世界栏</span>
+                <span class="is-main">场景总览 / 分区 / 对象</span>
+                <span>风险 / 邻接信息</span>
+              </div>
+              <ul>
+                <li>世界栏保持不变</li>
+                <li>主栏切换为场景分区、对象、在场角色</li>
+                <li>右栏可放相关地点或风险提示</li>
+              </ul>
+            </article>
+            <article class="family-card">
+              <span class="label">Character Sheet</span>
+              <h3>角色页</h3>
+              <div class="family-map">
+                <span>日志 / 相关事件</span>
+                <span class="is-main">身份卡 / 事实 / 关系</span>
+                <span>地点 / 风险</span>
+              </div>
+              <ul>
+                <li>左栏继续承载日志与事件流</li>
+                <li>主栏 hero 改成角色身份卡</li>
+                <li>主体为关系、事实、传闻、动态</li>
+              </ul>
+            </article>
+            <article class="family-card">
+              <span class="label">Consequence View</span>
+              <h3>后果页</h3>
+              <div class="family-map">
+                <span>事件上下文</span>
+                <span class="is-main">结果 / 影响 / 新线索</span>
+                <span>目标 / 系统说明</span>
+              </div>
+              <ul>
+                <li>主栏以关键结果为中心</li>
+                <li>保留影响扩散与新线索</li>
+                <li>仍需保留下一步行动出口</li>
+              </ul>
+            </article>
+            <article class="family-card">
+              <span class="label">Journal Timeline</span>
+              <h3>日志页</h3>
+              <div class="family-map">
+                <span>过滤 / 索引</span>
+                <span class="is-main">时间线 / ledger</span>
+                <span>统计 / 标签</span>
+              </div>
+              <ul>
+                <li>主栏转为 ledger 式纵向阅读</li>
+                <li>左栏做过滤与索引</li>
+                <li>适合沉淀线索与调查记录</li>
+              </ul>
+            </article>
+            <article class="family-card">
+              <span class="label">Settlement Overview</span>
+              <h3>据点总览页</h3>
+              <div class="family-map">
+                <span>地点日志 / 传闻</span>
+                <span class="is-main">据点摘要 / 区域 / 可去地点</span>
+                <span>风险 / 旅行提示</span>
+              </div>
+              <ul>
+                <li>适合世界扩展到多个区域后使用</li>
+                <li>主栏不做百科，而是服务下一步去向选择</li>
+                <li>左栏继续承载沉淀式地点信息</li>
+              </ul>
+            </article>
+            <article class="family-card">
+              <span class="label">Investigation Board</span>
+              <h3>调查页</h3>
+              <div class="family-map">
+                <span>原始事件流</span>
+                <span class="is-main">线索组 / 关系 / 假设</span>
+                <span>规则 / 目标</span>
+              </div>
+              <ul>
+                <li>适合中后期复杂线索组织</li>
+                <li>主栏围绕问题和推理，而不是重复时间线</li>
+                <li>原始事件仍回到左栏保留上下文</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-heading">
+            <p class="eyebrow">Do / Don't</p>
+            <h2>迭代时的判断标准</h2>
+          </div>
+
+          <div class="rule-grid">
+            <article class="rule">
+              <span class="label">Do</span>
+              <h3>先定栏位职责，再放内容</h3>
+              <p>先问清楚信息该进左栏、主栏还是右栏，再决定具体模块长什么样。</p>
+            </article>
+            <article class="rule">
+              <span class="label">Do</span>
+              <h3>把完整历史流收进世界栏</h3>
+              <p>主栏只看当前回合最重要的动作和结果。</p>
+            </article>
+            <article class="rule">
+              <span class="label">Don’t</span>
+              <h3>不要把所有信息都塞进主栏</h3>
+              <p>如果主栏同时承载历史流、索引、长说明和动作，说明布局已经失控。</p>
+            </article>
+          </div>
+
+          <div class="workflow-strip">
+            <article class="workflow-step">
+              <span class="label">Step 01</span>
+              <h3>先判定 page family</h3>
+              <p>新增页面先归类，不要从组件开始画。</p>
+            </article>
+            <article class="workflow-step">
+              <span class="label">Step 02</span>
+              <h3>先定三栏职责</h3>
+              <p>先决定哪些信息属于世界栏、主栏和系统栏。</p>
+            </article>
+            <article class="workflow-step">
+              <span class="label">Step 03</span>
+              <h3>再补 panel 与视觉</h3>
+              <p>确认骨架后再细化标题、按钮、状态和细节样式。</p>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./preview.js"></script>
+  </body>
+  </html>
