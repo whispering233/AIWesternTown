@@ -3,29 +3,29 @@ import type { SceneFeedEntry, ShellViewModel } from "./shell-view-model";
 export function createMockShellViewModel(): ShellViewModel {
   return {
     header: {
-      title: "Dead Mesa Web Shell",
-      summary: "浏览器壳层只消费 view model。左侧为未来内容位，中间保持当前主叙事区，右侧调试区可独立隐藏。",
+      title: "Dead Mesa Main Shell",
+      summary: "浏览器壳层只消费 view model。左侧承载世界卷宗，中间保持当前回合，右侧承接系统信息与预留页面。",
       sessionLabel: "Session / Draft 01",
       connectionState: "mock",
       connectionLabel: "Mock Session Attached",
       connectionHint: "SSE 与会话状态会继续停留在这条文档元信息线上。"
     },
     leftPanel: {
-      title: "左侧预留区",
-      description: "这块内容位不参与当前主场景切换，后续可单独承载世界日志流或其他文档式页面。",
-      placeholderTitle: "世界日志流 / Reserved",
+      title: "世界侧栏",
+      description: "当前状态、事件流和卷宗日志统一收在这里，不打断主栏的当前回合交互。",
+      placeholderTitle: "当前状态",
       placeholderBody:
-        "当前先保留为空白内容页骨架。等世界日志、事件编年或调查索引接入后，它会沿用同一套编辑式视觉语言。",
+        "当前先保留状态页骨架。等世界日志、事件编年或调查索引接入后，它会沿用同一套编辑式视觉语言。",
       entries: [
         {
           id: "left-world-log",
-          label: "Reserved",
-          title: "世界日志流",
+          label: "Event Stream",
+          title: "世界事件流",
           body: "未来展示时间线式世界事件、远场变化和编年记录。"
         },
         {
           id: "left-index",
-          label: "Later",
+          label: "Journal",
           title: "卷宗索引",
           body: "也可以在这里承接人物索引、地点索引或调查条目。"
         }
@@ -127,8 +127,8 @@ export function createMockShellViewModel(): ShellViewModel {
       footnote: "当前为浏览器壳层演示。"
     },
     debugPanel: {
-      title: "调试侧栏",
-      description: "调试信息仍然保留独立挂点，但视觉上会与主文档语言保持一致，而不是形成深色工具岛。",
+      title: "系统侧栏",
+      description: "调试信息仍然保留独立挂点，并与预留页面入口共享右侧 System Rail。",
       cards: [
         {
           id: "debug-transport",

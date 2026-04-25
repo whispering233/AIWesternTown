@@ -123,21 +123,21 @@ const sceneDefinitions: Record<string, SceneDefinition> = {
 };
 
 const defaultLeftPanel = {
-  title: "左侧预留区",
-  description: "保留文档式侧栏，用于后续接入世界日志流或卷宗索引。",
-  placeholderTitle: "世界日志流 / Reserved",
+  title: "世界侧栏",
+  description: "当前状态、事件流和卷宗日志统一收在这里，避免主交互栏被历史信息撑开。",
+  placeholderTitle: "当前状态",
   placeholderBody:
-    "本次实现仍保留左侧为稳定挂点，不把主循环逻辑挤进侧栏。",
+    "这里保留当前地点、世界 tick、运行模式和风险提示。后续可接入更完整的状态卡。",
   entries: [
     {
       id: "left-world-log",
-      label: "Reserved",
-      title: "世界日志流",
-      body: "后续可接入远场事件与编年信息。"
+      label: "Event Stream",
+      title: "世界事件流",
+      body: "后续接入远场事件、宿主回执和关键人物反应，作为可回看的短摘要。"
     },
     {
       id: "left-case-index",
-      label: "Later",
+      label: "Journal",
       title: "卷宗索引",
       body: "后续可放人物、地点和调查条目索引。"
     }
@@ -153,9 +153,9 @@ export function buildLiveShellViewModel(
 
   return {
     header: {
-      title: "Dead Mesa Web Shell",
+      title: "Dead Mesa Main Shell",
       summary:
-        "浏览器通过 ui-sdk 连接本地宿主，主栏现在优先展示移动、观察与后果。",
+        "浏览器通过 ui-sdk 连接本地宿主，主栏只服务当前回合，世界信息与系统信息分列两侧。",
       sessionLabel: runtimeState.session
         ? `Session / ${runtimeState.session.sessionId}`
         : "Session / Connecting",
@@ -212,8 +212,8 @@ export function buildLiveShellViewModel(
       )
     },
     debugPanel: {
-      title: "调试侧栏",
-      description: "右侧继续只承接 transport 与 trace 摘要，不混入主叙事流。",
+      title: "系统侧栏",
+      description: "右侧只承接 transport、trace 和后续页面入口，不混入主叙事流。",
       cards: buildDebugCards(runtimeState)
     }
   };
@@ -257,6 +257,7 @@ function buildFeedEntries(
 ): SceneFeedEntry[] {
   const entries: SceneFeedEntry[] = [];
   const lastSubmittedText = getMetadataCommandText(runtimeState.lastSubmittedCommand);
+  const lastSubmittedCommandId = runtimeState.lastSubmittedCommand?.commandId;
 
   if (runtimeState.lastSubmittedCommand && lastSubmittedText) {
     entries.push({
@@ -270,6 +271,13 @@ function buildFeedEntries(
 
   for (const event of runtimeState.streamEvents) {
     if (event.type === "command.accepted") {
+      if (
+        lastSubmittedCommandId &&
+        event.playerCommand.commandId !== lastSubmittedCommandId
+      ) {
+        continue;
+      }
+
       entries.push({
         id: `accepted-${event.eventId}`,
         role: "system",
@@ -280,6 +288,13 @@ function buildFeedEntries(
     }
 
     if (event.type === "world.event") {
+      if (
+        lastSubmittedCommandId &&
+        event.event.sourceCommandId !== lastSubmittedCommandId
+      ) {
+        continue;
+      }
+
       entries.push({
         id: `event-${event.event.eventId}`,
         role: "scene",
@@ -293,7 +308,7 @@ function buildFeedEntries(
   }
 
   if (entries.length > 0) {
-    return entries;
+    return entries.slice(-3);
   }
 
   return [
