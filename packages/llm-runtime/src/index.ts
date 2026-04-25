@@ -1,4 +1,5 @@
 export * from "./provider/index.js";
+export * from "./recorder/index.js";
 export {
   createLLMGateway,
   createLLMGatewayConfigFromEnv,

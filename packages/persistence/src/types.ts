@@ -23,6 +23,8 @@ export type SimulationRunMode =
   | "interrupted"
   | "settle";
 
+export type DebugLogKind = "llm_call";
+
 export type SaveRecord = {
   saveId: string;
   name: string;
@@ -66,6 +68,41 @@ export type AppendEventLogInput = Omit<EventLogRecord, "saveId" | "createdAt"> &
 };
 
 export type EventLogQuery = {
+  fromTick?: number;
+  toTick?: number;
+  limit?: number;
+};
+
+export type DebugLogRecord = {
+  saveId: string;
+  recordId: string;
+  kind: DebugLogKind;
+  worldTick: number;
+  traceId?: string;
+  requestId?: string;
+  npcId?: string;
+  tags: string[];
+  payload: JsonObject;
+  metadata: JsonObject;
+  createdAt: string;
+};
+
+export type LlmDebugLogRecord = DebugLogRecord & {
+  kind: "llm_call";
+  traceId: string;
+  requestId: string;
+};
+
+export type AppendLlmDebugLogInput = Omit<
+  LlmDebugLogRecord,
+  "saveId" | "kind" | "createdAt"
+> & {
+  createdAt?: string;
+};
+
+export type LlmDebugLogQuery = {
+  traceId?: string;
+  requestId?: string;
   fromTick?: number;
   toTick?: number;
   limit?: number;

@@ -209,3 +209,46 @@ test("restores persisted session state", () => {
     assert.equal(save?.updatedAt, "2026-04-24T10:05:00.000Z");
   });
 });
+
+test("writes and queries llm debug log records", () => {
+  withStore((store) => {
+    store.saves.create({
+      saveId: "save-debug",
+      name: "Debug log test"
+    });
+
+    store.debugLogs.appendLlmCall("save-debug", {
+      recordId: "dbg-llm-1",
+      traceId: "llm-trace-1",
+      requestId: "req-1",
+      worldTick: 185,
+      npcId: "npc-doctor",
+      tags: ["llm", "critical"],
+      payload: {
+        taskKind: "visible_outcome_render",
+        stageName: "act",
+        providerName: "local",
+        modelRef: "local-model",
+        finishReason: "stop",
+        durationMs: 125
+      },
+      metadata: {
+        persistedFrom: "recorder"
+      },
+      createdAt: "2026-04-25T10:00:00.000Z"
+    });
+
+    const byTrace = store.debugLogs.queryLlmCalls("save-debug", {
+      traceId: "llm-trace-1"
+    });
+    const byRequest = store.debugLogs.queryLlmCalls("save-debug", {
+      requestId: "req-1"
+    });
+
+    assert.equal(byTrace.length, 1);
+    assert.equal(byTrace[0]?.recordId, "dbg-llm-1");
+    assert.equal(byTrace[0]?.payload.taskKind, "visible_outcome_render");
+    assert.equal(byTrace[0]?.metadata.persistedFrom, "recorder");
+    assert.equal(byRequest[0]?.traceId, "llm-trace-1");
+  });
+});

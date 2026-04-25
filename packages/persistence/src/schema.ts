@@ -72,6 +72,36 @@ export const sessionStatesTable = sqliteTable("session_states", {
   updatedAt: text("updated_at").notNull()
 });
 
+export const debugLogsTable = sqliteTable(
+  "debug_logs",
+  {
+    saveId: text("save_id")
+      .notNull()
+      .references(() => savesTable.saveId, { onDelete: "cascade" }),
+    recordId: text("record_id").notNull(),
+    kind: text("kind").notNull(),
+    worldTick: integer("world_tick").notNull(),
+    traceId: text("trace_id"),
+    requestId: text("request_id"),
+    npcId: text("npc_id"),
+    tagsJson: text("tags_json").notNull(),
+    payloadJson: text("payload_json").notNull(),
+    metadataJson: text("metadata_json").notNull(),
+    createdAt: text("created_at").notNull()
+  },
+  (table) => [
+    primaryKey({ columns: [table.saveId, table.recordId] }),
+    index("idx_debug_logs_save_kind_tick").on(
+      table.saveId,
+      table.kind,
+      table.worldTick,
+      table.createdAt
+    ),
+    index("idx_debug_logs_save_trace").on(table.saveId, table.traceId),
+    index("idx_debug_logs_save_request").on(table.saveId, table.requestId)
+  ]
+);
+
 export const migrationConfig = {
   dialect: "sqlite",
   schema: "./src/schema.ts",
@@ -125,6 +155,20 @@ export const sessionStateSelection = {
   eventWindowJson: sessionStatesTable.eventWindowJson,
   playerActionLedgerJson: sessionStatesTable.playerActionLedgerJson,
   updatedAt: sessionStatesTable.updatedAt
+};
+
+export const debugLogSelection = {
+  saveId: debugLogsTable.saveId,
+  recordId: debugLogsTable.recordId,
+  kind: debugLogsTable.kind,
+  worldTick: debugLogsTable.worldTick,
+  traceId: debugLogsTable.traceId,
+  requestId: debugLogsTable.requestId,
+  npcId: debugLogsTable.npcId,
+  tagsJson: debugLogsTable.tagsJson,
+  payloadJson: debugLogsTable.payloadJson,
+  metadataJson: debugLogsTable.metadataJson,
+  createdAt: debugLogsTable.createdAt
 };
 
 export const nowIsoSql = sql`CURRENT_TIMESTAMP`;

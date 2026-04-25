@@ -1,4 +1,5 @@
 import { EventLogRepository } from "./event-log-repository.js";
+import { DebugLogRepository } from "./debug-log-repository.js";
 import { SaveRepository } from "./save-repository.js";
 import { PersistenceDatabase, type PersistenceDatabaseOptions } from "./sqlite.js";
 import { SessionStateRepository } from "./session-state-repository.js";
@@ -6,11 +7,13 @@ import { SessionStateRepository } from "./session-state-repository.js";
 export class PersistenceStore {
   public readonly saves: SaveRepository;
   public readonly eventLogs: EventLogRepository;
+  public readonly debugLogs: DebugLogRepository;
   public readonly sessionStates: SessionStateRepository;
 
   private constructor(public readonly database: PersistenceDatabase) {
     this.saves = new SaveRepository(database);
     this.eventLogs = new EventLogRepository(database);
+    this.debugLogs = new DebugLogRepository(database);
     this.sessionStates = new SessionStateRepository(database);
   }
 
