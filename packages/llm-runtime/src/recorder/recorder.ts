@@ -77,6 +77,10 @@ class DefaultLLMCallRecorder implements LLMCallRecorder {
       durationMs,
       request: summarizeRequest(input, this.#maxTextPreviewChars),
       response: summarizeResponse(response, this.#maxTextPreviewChars),
+      replay: {
+        request: cloneJson(input.request),
+        response: cloneJson(response)
+      },
       trace,
       metadata,
       persisted
@@ -180,4 +184,8 @@ function previewText(value: string, maxTextPreviewChars: number): string {
 
 function createDefaultId(prefix: Parameters<LLMRecorderIdFactory>[0]): string {
   return `${prefix}-${randomUUID()}`;
+}
+
+function cloneJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }

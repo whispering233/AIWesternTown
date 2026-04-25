@@ -138,3 +138,56 @@ test("keeps a bounded recent call buffer and truncates text previews", async () 
   assert.equal(recent[0]?.request.messages[0]?.contentPreview, "01234567");
   assert.equal(recent[0]?.response.rawTextPreview, "abcdefgh");
 });
+
+test("keeps full provider request and response for fixture replay", async () => {
+  const recorder = createLLMCallRecorder({
+    maxTextPreviewChars: 8,
+    idFactory: (prefix) => `${prefix}-fixture`
+  });
+  const fullUserPrompt =
+    "Render the resolved visible outcome with enough detail to prove the fixture stores full prompt text.";
+  const fullRawText =
+    "{\"visibleText\":\"The doctor lowers his voice and the whole ward hears the warning.\"}";
+
+  await recorder.recordInvocation(
+    {
+      request: {
+        ...createProviderRequest(),
+        messages: [
+          {
+            role: "user",
+            content: fullUserPrompt
+          }
+        ]
+      },
+      stageName: "act",
+      invocationDecision: "authorized_and_needed"
+    },
+    async (request) => ({
+      requestId: request.requestId,
+      providerName: "local",
+      modelRef: request.modelRef,
+      finishReason: "stop",
+      rawText: fullRawText,
+      usage: {
+        inputTokens: 37,
+        outputTokens: 14
+      }
+    })
+  );
+
+  const [record] = recorder.getRecentCalls();
+  const replay = record?.replay;
+
+  assert.equal(
+    record?.request.messages[0]?.contentPreview,
+    fullUserPrompt.slice(0, 8)
+  );
+  assert.equal(record?.response.rawTextPreview, fullRawText.slice(0, 8));
+  assert.equal(replay?.request.messages[0]?.content, fullUserPrompt);
+  assert.equal(replay?.response.rawText, fullRawText);
+  assert.deepEqual(replay?.response.usage, {
+    inputTokens: 37,
+    outputTokens: 14
+  });
+});

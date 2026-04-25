@@ -44,6 +44,11 @@ export type LLMCallRecordResponse = {
   errorMessage?: string;
 };
 
+export type LLMCallRecordReplay = {
+  request: ProviderRequest;
+  response: ProviderResponse;
+};
+
 export type RecordLLMInvocationInput = {
   request: ProviderRequest;
   traceId?: string;
@@ -76,6 +81,7 @@ export type LLMCallRecord = {
   durationMs: number;
   request: LLMCallRecordRequest;
   response: LLMCallRecordResponse;
+  replay: LLMCallRecordReplay;
   trace: LLMCallTrace;
   metadata: Metadata;
   persisted: boolean;
