@@ -20,7 +20,7 @@ export function PlayableLoopPanel({
     <section className="playable-loop-panel">
       <div className="feed-header">
         <div>
-          <p className="eyebrow">Playable Loop</p>
+          <p className="eyebrow">Primary Action Frame</p>
           <h3>移动与机会</h3>
           <p className="feed-subtitle">
             先决定站位，再决定观察、接近或继续深挖。
@@ -35,17 +35,21 @@ export function PlayableLoopPanel({
         </div>
 
         <div className="loop-chip-grid">
-          {movement.map((item) => (
-            <button
-              key={item.id}
-              className="loop-chip"
-              type="button"
-              onClick={() => onMovementSelect(item)}
-            >
-              <span className="loop-chip-label">{item.label}</span>
-              <span className="loop-chip-detail">{item.hint}</span>
-            </button>
-          ))}
+          {movement.length === 0 ? (
+            <p className="empty-feed">当前没有新的移动 lead。</p>
+          ) : (
+            movement.map((item) => (
+              <button
+                key={item.id}
+                className="loop-chip"
+                type="button"
+                onClick={() => onMovementSelect(item)}
+              >
+                <span className="loop-chip-label">{item.label}</span>
+                <span className="loop-chip-detail">{item.hint}</span>
+              </button>
+            ))
+          )}
         </div>
       </div>
 
@@ -56,25 +60,29 @@ export function PlayableLoopPanel({
         </div>
 
         <div className="opportunity-list">
-          {opportunities.map((item) => (
-            <article key={item.id} className="opportunity-card">
-              <div className="opportunity-card-header">
-                <div>
-                  <strong>{item.title}</strong>
-                  <p className="feed-subtitle">{item.detail}</p>
+          {opportunities.length === 0 ? (
+            <p className="empty-feed">当前没有被系统前置的机会动作。</p>
+          ) : (
+            opportunities.map((item) => (
+              <article key={item.id} className="opportunity-card">
+                <div className="opportunity-card-header">
+                  <div>
+                    <strong>{item.title}</strong>
+                    <p className="feed-subtitle">{item.detail}</p>
+                  </div>
+                  <span className="debug-badge">{item.kind}</span>
                 </div>
-                <span className="debug-badge">{item.kind}</span>
-              </div>
 
-              <button
-                className="toolbar-button opportunity-button"
-                type="button"
-                onClick={() => onOpportunitySelect(item)}
-              >
-                执行这一步
-              </button>
-            </article>
-          ))}
+                <button
+                  className="toolbar-button opportunity-button"
+                  type="button"
+                  onClick={() => onOpportunitySelect(item)}
+                >
+                  执行这一步
+                </button>
+              </article>
+            ))
+          )}
         </div>
       </div>
     </section>

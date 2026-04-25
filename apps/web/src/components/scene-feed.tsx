@@ -9,16 +9,16 @@ export function SceneFeed({ entries }: SceneFeedProps) {
     <section className="feed-panel">
       <div className="feed-header">
         <div>
-          <p className="eyebrow">Scene Feed</p>
-          <h3>场景反馈</h3>
+          <p className="eyebrow">Immediate Consequence</p>
+          <h3>即时后果</h3>
           <p className="feed-subtitle">
-            这里只保留结果流，明确区分玩家输入、宿主接收和世界后果。
+            主栏只保留最近命令的关键反馈，完整事件流归入左侧卷宗。
           </p>
         </div>
       </div>
 
       {entries.length === 0 ? (
-        <p className="empty-feed">当前没有可见反馈。</p>
+        <p className="empty-feed">当前没有需要立刻处理的后果。</p>
       ) : (
         <div className="feed-list">
           {entries.map((entry) => (

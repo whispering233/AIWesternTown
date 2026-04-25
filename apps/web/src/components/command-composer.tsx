@@ -38,14 +38,17 @@ export function CommandComposer({
       <p className="composer-copy">{composer.description}</p>
 
       <form className="composer-form" onSubmit={handleSubmit}>
+        <label className="visually-hidden" htmlFor="command-input">
+          输入命令
+        </label>
         <div className="composer-input-row">
           <input
+            id="command-input"
             className="composer-input"
             type="text"
             value={composer.draft}
             placeholder={composer.placeholder}
             onChange={(event) => onDraftChange(event.target.value)}
-            aria-label="输入命令"
           />
 
           <button className="submit-button" type="submit">

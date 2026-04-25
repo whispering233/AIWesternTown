@@ -7,9 +7,11 @@ type DebugDockProps = {
 export function DebugDock({ debugPanel }: DebugDockProps) {
   return (
     <section className="debug-panel">
-      <p className="eyebrow">Debug Slot</p>
-      <h3>{debugPanel.title}</h3>
-      <p className="debug-copy">{debugPanel.description}</p>
+      <div className="panel-head">
+        <p className="eyebrow">System Rail</p>
+        <h3>{debugPanel.title}</h3>
+        <p className="debug-copy">{debugPanel.description}</p>
+      </div>
 
       <div className="debug-card-list">
         {debugPanel.cards.map((card) => (

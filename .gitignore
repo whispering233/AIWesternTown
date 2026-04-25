@@ -1,5 +1,6 @@
 .superpowers/brainstorm
 .codex/
+.codex-run/
 graphify-out/
 .clj-kondo/
 .lsp/
