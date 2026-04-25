@@ -62,6 +62,16 @@ test("gateway resolves local provider settings from environment-like config", ()
   assert.equal(gateway.getProvider().getName(), "local");
 });
 
+test("gateway defaults local provider to the local OpenAI-compatible service", () => {
+  const config = createLLMGatewayConfigFromEnv({
+    LLM_PROVIDER: "local"
+  });
+
+  assert.equal(config.provider, "local");
+  assert.equal(config.local?.baseUrl, "http://127.0.0.1:1234/v1");
+  assert.equal(config.local?.apiKey, undefined);
+});
+
 test("gateway rejects unknown provider configuration values", () => {
   assert.throws(
     () =>

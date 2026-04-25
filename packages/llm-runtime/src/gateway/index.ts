@@ -35,7 +35,7 @@ export interface LLMGateway {
   healthCheck(): Promise<ProviderHealthResult>;
 }
 
-const DEFAULT_LOCAL_BASE_URL = "http://127.0.0.1:11434/v1";
+const DEFAULT_LOCAL_BASE_URL = "http://127.0.0.1:1234/v1";
 
 export function createLLMGateway(config: LLMGatewayConfig): LLMGateway {
   return new DefaultLLMGateway(createProviderFromConfig(config));
