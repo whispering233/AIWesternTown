@@ -5,6 +5,10 @@ import { DebugDock } from "./components/debug-dock";
 import { LeftPanelSlot } from "./components/left-panel-slot";
 import { PlayableLoopPanel } from "./components/playable-loop-panel";
 import { SceneFeed } from "./components/scene-feed";
+import {
+  createEmptyLLMDebugPanelModel,
+  LLMDebugPanel
+} from "./debug";
 import { buildLiveShellViewModel } from "./view-model/live-shell-view-model";
 import {
   createFreeTextCommand,
@@ -347,8 +351,7 @@ export function App() {
           className={`panel-drawer debug-drawer ${isDebugDrawerOpen ? "is-open" : ""}`.trim()}
           onClick={preventDrawerDismiss}
         >
-          <DebugDock debugPanel={viewModel.debugPanel} />
-          <PageFamilyReservations />
+          <SystemRailContent debugPanel={viewModel.debugPanel} />
         </aside>
       </div>
     </div>
@@ -360,9 +363,12 @@ function SystemRailContent({
 }: {
   debugPanel: ShellViewModel["debugPanel"];
 }) {
+  const llmDebugPanel = createEmptyLLMDebugPanelModel();
+
   return (
     <div className="system-rail-stack">
       <DebugDock debugPanel={debugPanel} />
+      <LLMDebugPanel model={llmDebugPanel} />
       <PageFamilyReservations />
     </div>
   );
