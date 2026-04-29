@@ -5,7 +5,6 @@ graphify-out/
 .clj-kondo/
 .lsp/
 
-AGENTS.md
 node_modules/
 .turbo/
 dist/
