@@ -8,6 +8,8 @@ graphify-out/
 node_modules/
 .turbo/
 dist/
+.env.local
+.env.*.local
 
 .playwright-cli/
 output/playwright/

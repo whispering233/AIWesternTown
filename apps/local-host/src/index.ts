@@ -2,18 +2,24 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { buildLocalHostServer } from "./server.js";
+import {
+  loadLocalHostEnvFile,
+  resolveLocalHostRuntimeConfig
+} from "./config.js";
 
 export * from "./server.js";
 export * from "./session-store.js";
+export * from "./config.js";
 
 async function main(): Promise<void> {
+  await loadLocalHostEnvFile();
+
   const server = buildLocalHostServer();
-  const port = Number.parseInt(process.env.LOCAL_HOST_PORT ?? "8787", 10);
-  const host = process.env.LOCAL_HOST_BIND ?? "127.0.0.1";
+  const config = resolveLocalHostRuntimeConfig();
 
   await server.listen({
-    port,
-    host
+    port: config.port,
+    host: config.host
   });
 }
 
