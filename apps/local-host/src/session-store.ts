@@ -15,12 +15,18 @@ import type {
   TickTraceRecord,
   WorldEventRecord
 } from "@ai-western-town/contracts";
+import {
+  createStarterTownSessionRuntime,
+  type StarterTownSessionRuntime,
+  type StarterTownSessionState
+} from "@ai-western-town/app-services";
 
 type Clock = () => Date;
 type StreamSubscriber = (event: LocalHostStreamEvent) => void;
 
 type SessionState = {
   session: LocalSession;
+  appState: StarterTownSessionState;
   nextSequence: number;
   subscribers: Set<StreamSubscriber>;
 };
@@ -38,9 +44,15 @@ export class SessionNotFoundError extends Error {
 export class InMemoryLocalSessionStore {
   private readonly sessions = new Map<string, SessionState>();
   private readonly clock: Clock;
+  private readonly sessionRuntime: StarterTownSessionRuntime;
 
-  constructor(options?: { clock?: Clock }) {
+  constructor(options?: {
+    clock?: Clock;
+    sessionRuntime?: StarterTownSessionRuntime;
+  }) {
     this.clock = options?.clock ?? (() => new Date());
+    this.sessionRuntime =
+      options?.sessionRuntime ?? createStarterTownSessionRuntime();
   }
 
   createSession(input: CreateLocalSessionRequest = {}): LocalSession {
@@ -56,6 +68,9 @@ export class InMemoryLocalSessionStore {
 
     this.sessions.set(session.sessionId, {
       session,
+      appState: this.sessionRuntime.createInitialState({
+        currentSceneId: getInitialSceneId(input)
+      }),
       nextSequence: 1,
       subscribers: new Set()
     });
@@ -86,40 +101,44 @@ export class InMemoryLocalSessionStore {
   submitCommand(
     sessionId: string,
     playerCommand: PlayerCommandEnvelope
-  ): SubmitLocalCommandResponse {
+  ): Promise<SubmitLocalCommandResponse> {
+    return this.submitCommandAsync(sessionId, playerCommand);
+  }
+
+  private async submitCommandAsync(
+    sessionId: string,
+    playerCommand: PlayerCommandEnvelope
+  ): Promise<SubmitLocalCommandResponse> {
     const state = this.getSessionState(sessionId);
-    const nextTick = playerCommand.consumesTick
-      ? state.session.worldTick + 1
-      : state.session.worldTick;
+    const commandResult = await this.sessionRuntime.submitCommand(
+      state.appState,
+      playerCommand
+    );
     const now = this.clock().toISOString();
 
+    state.appState = commandResult.nextState;
     state.session = {
       ...state.session,
       updatedAt: now,
-      worldTick: nextTick
+      worldTick: commandResult.nextState.worldTick
     };
 
     const commandAcceptedEvent = this.buildCommandAcceptedEvent(
       state,
       playerCommand
     );
-
-    const worldEventRecord = this.buildFakeWorldEvent(
-      state.session,
-      playerCommand,
-      now
+    const worldEvents = commandResult.worldEvents.map((event) =>
+      this.buildWorldEventStreamEvent(state, event)
     );
-    const worldEvent = this.buildWorldEventStreamEvent(state, worldEventRecord);
-
-    const tickTrace = this.buildFakeTickTrace(
-      state.session,
-      playerCommand,
-      worldEventRecord
+    const traceEvent = this.buildTickTraceStreamEvent(
+      state,
+      commandResult.tickTrace
     );
-    const traceEvent = this.buildTickTraceStreamEvent(state, tickTrace);
 
     this.publish(state, commandAcceptedEvent);
-    this.publish(state, worldEvent);
+    for (const worldEvent of worldEvents) {
+      this.publish(state, worldEvent);
+    }
     this.publish(state, traceEvent);
 
     return {
@@ -127,7 +146,7 @@ export class InMemoryLocalSessionStore {
       acceptedCommandId: playerCommand.commandId,
       emittedEventIds: [
         commandAcceptedEvent.eventId,
-        worldEvent.eventId,
+        ...worldEvents.map((event) => event.eventId),
         traceEvent.eventId
       ]
     };
@@ -206,65 +225,12 @@ export class InMemoryLocalSessionStore {
       subscriber(event);
     }
   }
+}
 
-  private buildFakeWorldEvent(
-    session: LocalSession,
-    playerCommand: PlayerCommandEnvelope,
-    emittedAt: string
-  ): WorldEventRecord {
-    return {
-      eventId: `evt-${randomUUID()}`,
-      eventType: playerCommand.parsedAction.actionType ?? "player_command",
-      worldTick: session.worldTick,
-      originSceneId:
-        playerCommand.parsedAction.targetLocationId ?? "starter-town.saloon",
-      actorIds: ["player"],
-      targetIds: playerCommand.parsedAction.targetActorId
-        ? [playerCommand.parsedAction.targetActorId]
-        : [],
-      tags: playerCommand.parsedAction.tags ?? ["host-shell", "mock"],
-      heatLevel: playerCommand.consumesTick ? "high" : "ordinary",
-      sourceCommandId: playerCommand.commandId,
-      summary: `Accepted ${playerCommand.commandType} command in local host shell.`,
-      payload: {
-        emittedAt,
-        consumesTick: playerCommand.consumesTick
-      }
-    };
-  }
+function getInitialSceneId(
+  input: CreateLocalSessionRequest
+): string | undefined {
+  const currentSceneId = input.metadata?.currentSceneId;
 
-  private buildFakeTickTrace(
-    session: LocalSession,
-    playerCommand: PlayerCommandEnvelope,
-    worldEvent: WorldEventRecord
-  ): TickTraceRecord {
-    return {
-      traceId: `trace-${randomUUID()}`,
-      worldTick: session.worldTick,
-      playerCommand,
-      runModeBefore: "free_explore",
-      runModeAfter: "settle",
-      scheduleDecisions: {
-        foregroundFullNpcIds: [],
-        foregroundReactiveNpcIds: [],
-        nearFieldLightNpcIds: [],
-        nearFieldEscalatedNpcIds: [],
-        deferredFarFieldNpcIds: []
-      },
-      npcExecutions: [],
-      appendedEventIds: [worldEvent.eventId],
-      debugSummary: {
-        worldTick: session.worldTick,
-        runModeBefore: "free_explore",
-        runModeAfter: "settle",
-        promotedNpcIds: [],
-        suppressedNpcIds: [],
-        interruptCandidates: [],
-        budgetNotes: [
-          "local-host-shell generated a fake event stream",
-          "scheduler integration pending"
-        ]
-      }
-    };
-  }
+  return typeof currentSceneId === "string" ? currentSceneId : undefined;
 }

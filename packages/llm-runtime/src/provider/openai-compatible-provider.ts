@@ -90,7 +90,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
         {
           method: "POST",
           headers: this.#buildHeaders(),
-          body: JSON.stringify(createChatCompletionBody(request)),
+          body: JSON.stringify(createChatCompletionBody(request, this.#capabilities)),
           signal: controller.signal
         }
       );
@@ -230,7 +230,10 @@ export class OpenAICompatibleProvider implements LLMProvider {
   }
 }
 
-function createChatCompletionBody(request: ProviderRequest): Record<string, unknown> {
+function createChatCompletionBody(
+  request: ProviderRequest,
+  capabilities: ProviderCapability
+): Record<string, unknown> {
   const body: Record<string, unknown> = {
     model: request.modelRef,
     messages: request.messages,
@@ -243,9 +246,13 @@ function createChatCompletionBody(request: ProviderRequest): Record<string, unkn
     body.top_p = request.topP;
   }
 
-  if (request.responseFormat === "json_object") {
+  if (request.responseFormat === "json_object" && capabilities.supportsJsonObject) {
     body.response_format = {
       type: "json_object"
+    };
+  } else if (request.responseFormat === "json_object") {
+    body.response_format = {
+      type: "text"
     };
   }
 

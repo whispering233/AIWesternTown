@@ -2,9 +2,20 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, join, parse, resolve } from "node:path";
 
+import {
+  createLLMGatewayConfigFromEnv,
+  type LLMGatewayConfig
+} from "@ai-western-town/llm-runtime";
+
 export type LocalHostRuntimeConfig = {
   port: number;
   host: string;
+};
+
+export type LocalHostLLMRuntimeConfig = {
+  gateway: LLMGatewayConfig;
+  modelRef: string;
+  timeoutMs: number;
 };
 
 export type LocalHostEnv = Record<string, string | undefined>;
@@ -17,6 +28,8 @@ export type LoadLocalHostEnvFileOptions = {
 
 const DEFAULT_PORT = 8787;
 const DEFAULT_HOST = "127.0.0.1";
+const DEFAULT_LOCAL_LLM_MODEL = "gemma-4-e2b-uncensored-hauhaucs-aggressive";
+const DEFAULT_LLM_TIMEOUT_MS = 10_000;
 
 export async function loadLocalHostEnvFile(
   options: LoadLocalHostEnvFileOptions = {}
@@ -48,6 +61,36 @@ export function resolveLocalHostRuntimeConfig(
   return {
     port: parsePort(env.LOCAL_HOST_PORT),
     host: env.LOCAL_HOST_BIND ?? DEFAULT_HOST
+  };
+}
+
+export function resolveLocalHostLLMRuntimeConfig(
+  env: LocalHostEnv = process.env
+): LocalHostLLMRuntimeConfig {
+  const gateway = createLLMGatewayConfigFromEnv(env);
+
+  if (gateway.provider === "local") {
+    gateway.local = {
+      ...gateway.local,
+      baseUrl: gateway.local?.baseUrl ?? "http://127.0.0.1:1234/v1",
+      capabilities: {
+        ...(gateway.local?.capabilities ?? {}),
+        supportsJsonObject: parseBoolean(
+          env.LLM_LOCAL_SUPPORTS_JSON_OBJECT,
+          false
+        )
+      }
+    };
+  }
+
+  return {
+    gateway,
+    modelRef: env.LLM_LOCAL_MODEL ?? env.LLM_MODEL ?? DEFAULT_LOCAL_LLM_MODEL,
+    timeoutMs: parsePositiveInteger(
+      env.LLM_TIMEOUT_MS,
+      DEFAULT_LLM_TIMEOUT_MS,
+      "LLM_TIMEOUT_MS"
+    )
   };
 }
 
@@ -127,4 +170,30 @@ function parsePort(value: string | undefined): number {
   }
 
   return port;
+}
+
+function parsePositiveInteger(
+  value: string | undefined,
+  defaultValue: number,
+  envName: string
+): number {
+  if (value === undefined) {
+    return defaultValue;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`Invalid ${envName} "${value}". Expected a positive integer.`);
+  }
+
+  return parsed;
+}
+
+function parseBoolean(value: string | undefined, defaultValue: boolean): boolean {
+  if (value === undefined) {
+    return defaultValue;
+  }
+
+  return value === "true" || value === "1";
 }

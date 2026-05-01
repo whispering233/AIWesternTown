@@ -469,3 +469,11 @@ export type CognitionLiteRunResult = {
   actionSelectionResult?: ActionSelectionResult;
   executionResult?: ActionExecutionResult;
 };
+
+export type NpcCognitionRunInput = CognitionLiteRunInput;
+
+export type NpcCognitionRunResult = {
+  npcId: string;
+  strategy: "lite";
+  lite: CognitionLiteRunResult;
+};

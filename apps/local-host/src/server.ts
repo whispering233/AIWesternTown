@@ -5,6 +5,7 @@ import Fastify, {
 } from "fastify";
 
 import * as contracts from "@ai-western-town/contracts";
+import type { StarterTownSessionRuntime } from "@ai-western-town/app-services";
 
 import {
   InMemoryLocalSessionStore,
@@ -17,6 +18,7 @@ type SessionParams = {
 
 export type BuildLocalHostServerOptions = {
   sessionStore?: InMemoryLocalSessionStore;
+  sessionRuntime?: StarterTownSessionRuntime;
   logger?: boolean;
 };
 
@@ -24,7 +26,10 @@ export function buildLocalHostServer(
   options: BuildLocalHostServerOptions = {}
 ): FastifyInstance {
   const sessionStore =
-    options.sessionStore ?? new InMemoryLocalSessionStore();
+    options.sessionStore ??
+    new InMemoryLocalSessionStore({
+      sessionRuntime: options.sessionRuntime
+    });
   const server = Fastify({
     logger: options.logger ?? true
   });
@@ -89,7 +94,10 @@ export function buildLocalHostServer(
         request.body ?? {}
       );
       const response = contracts.submitLocalCommandResponseSchema.parse(
-        sessionStore.submitCommand(request.params.sessionId, body.playerCommand)
+        await sessionStore.submitCommand(
+          request.params.sessionId,
+          body.playerCommand
+        )
       );
 
       return reply.code(202).send(response);

@@ -6,7 +6,12 @@ import {
   buildSchedulerBridgeMeta,
   deriveCognitionLiteStageFlags
 } from "./scheduler-adapter.js";
-import type { CognitionLiteRunInput, CognitionLiteRunResult } from "./types.js";
+import type {
+  CognitionLiteRunInput,
+  CognitionLiteRunResult,
+  NpcCognitionRunInput,
+  NpcCognitionRunResult
+} from "./types.js";
 
 export function runCognitionLite(input: CognitionLiteRunInput): CognitionLiteRunResult {
   const stageFlags = deriveCognitionLiteStageFlags(input.plannedExecution);
@@ -61,5 +66,15 @@ export function runCognitionLite(input: CognitionLiteRunInput): CognitionLiteRun
     appraise: appraiseResult,
     actionSelectionResult,
     executionResult
+  };
+}
+
+export function runNpcCognition(
+  input: NpcCognitionRunInput
+): NpcCognitionRunResult {
+  return {
+    npcId: input.npcId,
+    strategy: "lite",
+    lite: runCognitionLite(input)
   };
 }

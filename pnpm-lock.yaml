@@ -19,9 +19,15 @@ importers:
 
   apps/local-host:
     dependencies:
+      '@ai-western-town/app-services':
+        specifier: workspace:*
+        version: link:../../packages/app-services
       '@ai-western-town/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@ai-western-town/llm-runtime':
+        specifier: workspace:*
+        version: link:../../packages/llm-runtime
       fastify:
         specifier: ^5.6.1
         version: 5.8.5
@@ -79,12 +85,21 @@ importers:
 
   packages/app-services:
     dependencies:
+      '@ai-western-town/cognition-core':
+        specifier: workspace:*
+        version: link:../cognition-core
       '@ai-western-town/content-schema':
         specifier: workspace:*
         version: link:../content-schema
+      '@ai-western-town/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@ai-western-town/game-core':
         specifier: workspace:*
         version: link:../game-core
+      '@ai-western-town/llm-runtime':
+        specifier: workspace:*
+        version: link:../llm-runtime
       '@ai-western-town/starter-town-content':
         specifier: workspace:*
         version: link:../../content/starter-town

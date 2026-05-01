@@ -158,6 +158,51 @@ test("local provider accepts an OpenAI-compatible server root base URL", async (
   assert.equal(response.rawText, "root base URL works");
 });
 
+test("local provider downgrades JSON object response format when capability is disabled", async () => {
+  let capturedBody: Record<string, unknown> | undefined;
+  const provider = createLocalProvider({
+    baseUrl: "http://127.0.0.1:1234/v1",
+    capabilities: {
+      supportsJsonObject: false
+    },
+    fetchFn: async (
+      _url: Parameters<typeof fetch>[0],
+      init?: Parameters<typeof fetch>[1]
+    ) => {
+      capturedBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: "{\"visibleText\":\"Text mode still follows JSON prompt.\"}"
+              },
+              finish_reason: "stop"
+            }
+          ]
+        }),
+        {
+          status: 200,
+          headers: {
+            "content-type": "application/json"
+          }
+        }
+      );
+    }
+  });
+
+  const response = await provider.invoke(createProviderRequest());
+
+  assert.deepEqual(capturedBody?.response_format, {
+    type: "text"
+  });
+  assert.equal(
+    response.rawText,
+    "{\"visibleText\":\"Text mode still follows JSON prompt.\"}"
+  );
+});
+
 test("local provider health check rejects OpenAI-compatible error payloads", async () => {
   const provider = createLocalProvider({
     baseUrl: "http://127.0.0.1:1234",

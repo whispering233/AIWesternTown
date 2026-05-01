@@ -6,6 +6,7 @@ import test from "node:test";
 
 import {
   loadLocalHostEnvFile,
+  resolveLocalHostLLMRuntimeConfig,
   resolveLocalHostRuntimeConfig
 } from "./config.js";
 
@@ -63,4 +64,18 @@ test("keeps explicit process environment values ahead of .env.local", async () =
       force: true
     });
   }
+});
+
+test("resolves local LLM runtime settings with the configured default local model", () => {
+  const config = resolveLocalHostLLMRuntimeConfig({
+    LLM_PROVIDER: "local"
+  });
+
+  assert.equal(config.gateway.provider, "local");
+  assert.equal(config.gateway.local?.capabilities?.supportsJsonObject, false);
+  assert.equal(
+    config.modelRef,
+    "gemma-4-e2b-uncensored-hauhaucs-aggressive"
+  );
+  assert.equal(config.timeoutMs, 10_000);
 });

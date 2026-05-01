@@ -9,6 +9,8 @@ import { once } from "node:events";
 import type {
   CreateLocalSessionResponse,
   LocalHostStreamEvent,
+  ProviderRequest,
+  ProviderResponse,
   SubmitLocalCommandResponse
 } from "@ai-western-town/contracts";
 import {
@@ -16,12 +18,19 @@ import {
   localHostStreamEventSchema,
   submitLocalCommandResponseSchema
 } from "@ai-western-town/contracts";
+import { createStarterTownSessionRuntime } from "@ai-western-town/app-services";
 
 import { buildLocalHostServer } from "./server.js";
 
 test("creates sessions, accepts commands, and emits SSE events", async () => {
   const server = buildLocalHostServer({
-    logger: false
+    logger: false,
+    sessionRuntime: createStarterTownSessionRuntime({
+      modelRef: "test-local-model",
+      llmGateway: createFakeLLMGateway(
+        '{"visibleText":"Mara keeps her answer short.","gestureTags":["guarded"]}'
+      )
+    })
   });
 
   await server.listen({
@@ -37,7 +46,11 @@ test("creates sessions, accepts commands, and emits SSE events", async () => {
       headers: {
         "content-type": "application/json"
       },
-      body: JSON.stringify({})
+      body: JSON.stringify({
+        metadata: {
+          currentSceneId: "saloon"
+        }
+      })
     });
     assert.equal(createResponse.status, 201);
 
@@ -52,7 +65,7 @@ test("creates sessions, accepts commands, and emits SSE events", async () => {
     assert.equal(streamResponse.status, 200);
     assert.notEqual(streamResponse.body, null);
 
-    const streamPromise = collectSseEvents(streamResponse, 4);
+    const streamPromise = collectSseEvents(streamResponse, 5);
 
     const commandResponse = await fetch(
       `${baseUrl}/sessions/${createPayload.session.sessionId}/commands`,
@@ -64,14 +77,20 @@ test("creates sessions, accepts commands, and emits SSE events", async () => {
         body: JSON.stringify({
           playerCommand: {
             commandId: "cmd-1",
-            commandType: "observe",
+            commandType: "social",
             parsedAction: {
-              actionType: "look",
-              targetLocationId: "starter-town.saloon",
-              tags: ["look"]
+              actionId: "act-approach-bartender",
+              actionClass: "intervene",
+              actionType: "ask_bartender_about_room",
+              targetActorId: "bartender",
+              targetNpcId: "bartender",
+              tags: ["social", "probe", "public"]
             },
             issuedAtTick: 0,
-            consumesTick: true
+            consumesTick: true,
+            metadata: {
+              commandText: "问问酒保刚才为什么突然安静"
+            }
           }
         })
       }
@@ -94,24 +113,30 @@ test("creates sessions, accepts commands, and emits SSE events", async () => {
         "session.snapshot",
         "command.accepted",
         "world.event",
+        "world.event",
         "tick.trace"
       ]
     );
     assert.equal(events[1]?.type, "command.accepted");
     assert.equal(events[2]?.type, "world.event");
-    assert.equal(events[3]?.type, "tick.trace");
+    assert.equal(events[3]?.type, "world.event");
+    assert.equal(events[4]?.type, "tick.trace");
 
     if (
       events[1]?.type !== "command.accepted" ||
       events[2]?.type !== "world.event" ||
-      events[3]?.type !== "tick.trace"
+      events[3]?.type !== "world.event" ||
+      events[4]?.type !== "tick.trace"
     ) {
-      assert.fail("Expected command, world event, and tick trace frames");
+      assert.fail("Expected command, world events, and tick trace frames");
     }
 
     assert.equal(events[1].session.worldTick, 1);
     assert.equal(events[2].event.sourceCommandId, "cmd-1");
-    assert.equal(events[3].trace.appendedEventIds.length, 1);
+    assert.match(events[3].event.summary ?? "", /Mara keeps her answer short/);
+    assert.equal(events[4].trace.appendedEventIds.length, 2);
+    assert.equal(events[4].trace.llmTraceIds?.length, 1);
+    assert.equal(events[4].trace.npcExecutions.length > 0, true);
   } finally {
     await server.close();
   }
@@ -347,4 +372,27 @@ async function waitForSessionResponse(baseUrl: string): Promise<Response> {
   throw lastError instanceof Error
     ? lastError
     : new Error("Timed out waiting for the local-host entrypoint to listen");
+}
+
+function createFakeLLMGateway(rawText: string) {
+  return {
+    getProvider() {
+      throw new Error("getProvider is not used by the local-host test.");
+    },
+    async healthCheck() {
+      return {
+        providerName: "fake-local",
+        ok: true
+      };
+    },
+    async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+      return {
+        requestId: request.requestId,
+        providerName: "fake-local",
+        modelRef: request.modelRef,
+        finishReason: "stop",
+        rawText
+      };
+    }
+  };
 }

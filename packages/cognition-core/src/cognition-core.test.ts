@@ -3,7 +3,12 @@ import assert from "node:assert/strict";
 
 import type { WorldEventWindow } from "@ai-western-town/contracts";
 
-import { act, deriveCognitionLiteStageFlags, runCognitionLite } from "./index.js";
+import {
+  act,
+  deriveCognitionLiteStageFlags,
+  runCognitionLite,
+  runNpcCognition
+} from "./index.js";
 import type { CognitionLiteRunInput } from "./types.js";
 
 function buildEventWindow(tick: number): WorldEventWindow {
@@ -271,6 +276,23 @@ test("reactive scheduler plan injects action selection before act", () => {
   assert.equal(result.actionSelectionResult?.actionType, "speak");
   assert.equal(result.executionResult?.outcome, "success");
   assert.equal(result.executionResult?.emittedEvents.length, 1);
+});
+
+test("npc cognition facade selects the lite strategy for the current implementation", () => {
+  const input = buildBaseInput();
+  input.plannedExecution = {
+    npcId: "npc-doctor",
+    executionClass: "reactive",
+    runStages: ["perceive", "appraise", "act"],
+    escalationReasonTags: ["foreground_reactive"]
+  };
+
+  const result = runNpcCognition(input);
+
+  assert.equal(result.strategy, "lite");
+  assert.equal(result.npcId, "npc-doctor");
+  assert.equal(result.lite.executionResult?.outcome, "success");
+  assert.equal(result.lite.schedulerBridge?.injectedStages.includes("action_selection"), true);
 });
 
 test("light scheduler plan stops before action selection and act", () => {
