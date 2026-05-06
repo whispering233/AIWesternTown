@@ -1,0 +1,64 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Local Host: local LLM",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/apps/local-host",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--import", "tsx"],
+      "program": "${workspaceFolder}/apps/local-host/src/index.ts",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "LOCAL_HOST_BIND": "127.0.0.1",
+        "LOCAL_HOST_PORT": "8787",
+        "LLM_PROVIDER": "local",
+        "LLM_LOCAL_BASE_URL": "http://127.0.0.1:1234/v1",
+        "LLM_LOCAL_SUPPORTS_JSON_OBJECT": "false",
+        "LLM_TIMEOUT_MS": "30000"
+      }
+    },
+    {
+      "name": "Web: Vite dev server",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/apps/web",
+      "runtimeExecutable": "node",
+      "program": "${workspaceFolder}/apps/web/node_modules/vite/bin/vite.js",
+      "args": ["--host", "127.0.0.1", "--port", "5173"],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "outputCapture": "std",
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "VITE_LOCAL_HOST_URL": "http://127.0.0.1:8787",
+        "VITE_DEV_HOST": "127.0.0.1",
+        "VITE_DEV_PORT": "5173"
+      },
+      "serverReadyAction": {
+        "pattern": "Local:\\s+(https?://\\S+)",
+        "uriFormat": "%s",
+        "action": "debugWithChrome",
+        "webRoot": "${workspaceFolder}/apps/web"
+      }
+    },
+    {
+      "name": "Browser: web UI",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://127.0.0.1:5173",
+      "webRoot": "${workspaceFolder}/apps/web",
+      "sourceMaps": true
+    }
+  ],
+  "compounds": [
+    {
+      "name": "E2E: local LLM + web UI",
+      "configurations": ["Local Host: local LLM", "Web: Vite dev server"],
+      "stopAll": true
+    }
+  ]
+}
