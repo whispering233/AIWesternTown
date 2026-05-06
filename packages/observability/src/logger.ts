@@ -3,6 +3,7 @@ import { dirname } from "node:path";
 
 import pino from "pino";
 
+import { createSeqSink, type SeqSink } from "./seq-sink.js";
 import type {
   LogBindings,
   LogFields,
@@ -101,15 +102,28 @@ export function createPinoLogger(config: LoggerFactoryConfig): Logger {
     },
     pino.multistream(streams)
   );
+  const seqSink = config.seq.enabled
+    ? createSeqSink({
+        url: config.seq.url,
+        apiKey: config.seq.apiKey
+      })
+    : undefined;
 
-  return wrapPinoLogger(base, () => {
-    destination.flushSync();
-  });
+  return wrapPinoLogger(
+    base,
+    () => {
+      destination.flushSync();
+    },
+    seqSink,
+    config.seq.url
+  );
 }
 
 function wrapPinoLogger(
   base: pino.Logger,
   flush: () => void,
+  seqSink: SeqSink | undefined,
+  seqUrl: string,
   bindings: LogBindings = {}
 ): Logger {
   const write = (
@@ -117,13 +131,22 @@ function wrapPinoLogger(
     fields: LogFields,
     message?: string
   ): void => {
-    base[level](
-      {
-        ...bindings,
-        ...fields
-      },
-      message
-    );
+    const mergedFields: LogFields = {
+      ...bindings,
+      ...fields
+    };
+
+    base[level](mergedFields, message);
+
+    void seqSink?.write(level, mergedFields, message).catch(() => {
+      base.warn(
+        {
+          event: "logger.seq_write_failed",
+          seqUrl
+        },
+        "Seq log sink failed"
+      );
+    });
   };
 
   return {
@@ -143,6 +166,8 @@ function wrapPinoLogger(
       return wrapPinoLogger(
         base,
         flush,
+        seqSink,
+        seqUrl,
         {
           ...bindings,
           ...nextBindings
