@@ -72,6 +72,11 @@ test("starter town session runtime runs game, cognition, and visible outcome LLM
       event.summary?.includes("Mara keeps her answer short.")
     )
   );
+  assert.equal(
+    result.worldEvents.find((event) => event.payload?.llmTraceId)
+      ?.sourceCommandId,
+    "cmd-approach-bartender"
+  );
   assert.equal(result.tickTrace.llmTraceIds?.length, 1);
   assert.equal(result.tickTrace.npcExecutions.length > 0, true);
   assert.equal(result.llmCalls.length, 1);

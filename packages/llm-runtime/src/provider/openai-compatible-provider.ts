@@ -293,10 +293,19 @@ function resolveFetch(fetchFn: FetchLike | undefined): FetchLike | undefined {
 }
 
 function isAbortError(error: unknown): boolean {
+  if (error instanceof DOMException || error instanceof Error) {
+    return isAbortErrorName(error.name);
+  }
+
   return (
-    error instanceof DOMException &&
-    (error.name === "AbortError" || error.name === "TimeoutError")
+    isRecord(error) &&
+    typeof error.name === "string" &&
+    isAbortErrorName(error.name)
   );
+}
+
+function isAbortErrorName(name: string): boolean {
+  return name === "AbortError" || name === "TimeoutError";
 }
 
 function getErrorMessage(error: unknown): string {

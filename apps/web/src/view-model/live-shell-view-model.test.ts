@@ -33,6 +33,23 @@ const oldObserveCommand: PlayerCommandEnvelope = {
   }
 };
 
+const saloonCommand: PlayerCommandEnvelope = {
+  commandId: "cmd-saloon-approach",
+  commandType: "social",
+  parsedAction: {
+    actionClass: "intervene",
+    actionType: "approach",
+    targetLocationId: "saloon",
+    targetSceneId: "saloon",
+    tags: ["approach"]
+  },
+  issuedAtTick: 1,
+  consumesTick: true,
+  metadata: {
+    commandText: "走近酒保，看看她刚才在留意谁"
+  }
+};
+
 test("buildLiveShellViewModel exposes movement leads for the current scene", () => {
   const viewModel = buildLiveShellViewModel(createRuntimeState());
 
@@ -177,6 +194,66 @@ test("buildLiveShellViewModel keeps the main feed scoped to the latest submitted
   );
   assert.ok(
     viewModel.feed.every((entry) => !entry.body.includes("旧反馈不应该继续占据主交互栏"))
+  );
+});
+
+test("buildLiveShellViewModel keeps command suggestions scoped to the player scene", () => {
+  const viewModel = buildLiveShellViewModel(
+    createRuntimeState({
+      streamEvents: [
+        createEvent("command.accepted", {
+          playerCommand: saloonCommand,
+          session: {
+            sessionId: "session-1",
+            status: "active",
+            createdAt: "2026-04-24T10:00:00+08:00",
+            updatedAt: "2026-04-24T10:00:02+08:00",
+            worldTick: 2
+          }
+        }),
+        createEvent("world.event", {
+          event: {
+            eventId: "evt-current-scene",
+            eventType: "npc_observe",
+            worldTick: 2,
+            originSceneId: "saloon",
+            actorIds: ["bartender"],
+            targetIds: [],
+            tags: ["observe"],
+            heatLevel: "ordinary",
+            sourceCommandId: "cmd-saloon-approach",
+            summary: "Mara watches the room."
+          }
+        }),
+        createEvent("world.event", {
+          event: {
+            eventId: "evt-near-field",
+            eventType: "npc_observe",
+            worldTick: 2,
+            originSceneId: "hotel_lobby",
+            actorIds: ["doctor"],
+            targetIds: [],
+            tags: ["observe"],
+            heatLevel: "ordinary",
+            sourceCommandId: "cmd-saloon-approach",
+            summary: "Eliza watches the room from the hotel lobby."
+          }
+        })
+      ],
+      lastSubmittedCommand: saloonCommand
+    })
+  );
+
+  assert.equal(viewModel.scene.sceneId, "saloon");
+  assert.ok(
+    viewModel.suggestions.some((suggestion) =>
+      suggestion.label.includes("Mara Holt")
+    )
+  );
+  assert.ok(
+    viewModel.suggestions.every((suggestion) =>
+      !suggestion.label.includes("Eliza Wynn")
+    )
   );
 });
 

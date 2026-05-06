@@ -220,11 +220,14 @@ export function buildLiveShellViewModel(
 }
 
 function inferCurrentSceneId(runtimeState: LocalSessionRuntimeState): string {
-  for (const event of [...runtimeState.streamEvents].reverse()) {
-    if (event.type === "world.event") {
-      return event.event.originSceneId;
-    }
+  const lastSubmittedSceneId =
+    runtimeState.lastSubmittedCommand?.parsedAction.targetLocationId;
 
+  if (lastSubmittedSceneId) {
+    return lastSubmittedSceneId;
+  }
+
+  for (const event of [...runtimeState.streamEvents].reverse()) {
     if (
       event.type === "command.accepted" &&
       event.playerCommand.parsedAction.targetLocationId
@@ -233,10 +236,13 @@ function inferCurrentSceneId(runtimeState: LocalSessionRuntimeState): string {
     }
   }
 
-  return (
-    runtimeState.lastSubmittedCommand?.parsedAction.targetLocationId ??
-    "hotel_lobby"
-  );
+  for (const event of [...runtimeState.streamEvents].reverse()) {
+    if (event.type === "world.event") {
+      return event.event.originSceneId;
+    }
+  }
+
+  return "hotel_lobby";
 }
 
 function buildMovementItems(scene: SceneDefinition): MovementItem[] {

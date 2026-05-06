@@ -170,6 +170,7 @@ export function createStarterTownSessionRuntime(
         npcWorldEvents.push(
           ...execution.emittedEvents.map((event) => ({
             ...event,
+            sourceCommandId: event.sourceCommandId ?? playerCommand.commandId,
             summary: renderResult.visibleText,
             payload: {
               ...(event.payload ?? {}),

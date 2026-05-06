@@ -241,6 +241,25 @@ test("local provider returns structured errors for failed model calls", async ()
   assert.match(response.errorMessage ?? "", /model not loaded/);
 });
 
+test("local provider treats fetch abort-shaped errors as timeouts", async () => {
+  const provider = createLocalProvider({
+    baseUrl: "http://127.0.0.1:1234/v1",
+    fetchFn: async () => {
+      const error = new Error("This operation was aborted");
+      error.name = "AbortError";
+
+      throw error;
+    }
+  });
+
+  const response = await provider.invoke(createProviderRequest());
+
+  assert.equal(response.providerName, "local");
+  assert.equal(response.finishReason, "timeout");
+  assert.equal(response.errorCode, "provider_timeout");
+  assert.match(response.errorMessage ?? "", /1000ms/);
+});
+
 test("cloud provider placeholder returns a structured not-configured error", async () => {
   const provider = createCloudProviderPlaceholder();
 
