@@ -20,6 +20,7 @@ import {
   type StarterTownSessionRuntime,
   type StarterTownSessionState
 } from "@ai-western-town/app-services";
+import type { Logger } from "@ai-western-town/observability";
 
 type Clock = () => Date;
 type StreamSubscriber = (event: LocalHostStreamEvent) => void;
@@ -29,6 +30,11 @@ type SessionState = {
   appState: StarterTownSessionState;
   nextSequence: number;
   subscribers: Set<StreamSubscriber>;
+};
+
+export type LocalSessionCommandContext = {
+  logger?: Logger;
+  requestId?: string;
 };
 
 export class SessionNotFoundError extends Error {
@@ -100,19 +106,26 @@ export class InMemoryLocalSessionStore {
 
   submitCommand(
     sessionId: string,
-    playerCommand: PlayerCommandEnvelope
+    playerCommand: PlayerCommandEnvelope,
+    context: LocalSessionCommandContext = {}
   ): Promise<SubmitLocalCommandResponse> {
-    return this.submitCommandAsync(sessionId, playerCommand);
+    return this.submitCommandAsync(sessionId, playerCommand, context);
   }
 
   private async submitCommandAsync(
     sessionId: string,
-    playerCommand: PlayerCommandEnvelope
+    playerCommand: PlayerCommandEnvelope,
+    context: LocalSessionCommandContext
   ): Promise<SubmitLocalCommandResponse> {
     const state = this.getSessionState(sessionId);
     const commandResult = await this.sessionRuntime.submitCommand(
       state.appState,
-      playerCommand
+      playerCommand,
+      {
+        logger: context.logger,
+        requestId: context.requestId,
+        sessionId
+      }
     );
     const now = this.clock().toISOString();
 

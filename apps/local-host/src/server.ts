@@ -6,6 +6,11 @@ import Fastify, {
 
 import * as contracts from "@ai-western-town/contracts";
 import type { StarterTownSessionRuntime } from "@ai-western-town/app-services";
+import {
+  createNoopLogger,
+  serializeError,
+  type Logger
+} from "@ai-western-town/observability";
 
 import {
   InMemoryLocalSessionStore,
@@ -20,11 +25,16 @@ export type BuildLocalHostServerOptions = {
   sessionStore?: InMemoryLocalSessionStore;
   sessionRuntime?: StarterTownSessionRuntime;
   logger?: boolean;
+  observabilityLogger?: Logger;
 };
 
 export function buildLocalHostServer(
   options: BuildLocalHostServerOptions = {}
 ): FastifyInstance {
+  const appLogger = (options.observabilityLogger ?? createNoopLogger()).child({
+    module: "local-host"
+  });
+  const requestStartedAt = new WeakMap<FastifyRequest, number>();
   const sessionStore =
     options.sessionStore ??
     new InMemoryLocalSessionStore({
@@ -35,6 +45,14 @@ export function buildLocalHostServer(
   });
 
   server.addHook("onRequest", (request, reply, done) => {
+    requestStartedAt.set(request, Date.now());
+    appLogger.info({
+      event: "http.request",
+      requestId: getRequestId(request),
+      method: request.method,
+      url: request.url
+    });
+
     applyCorsHeaders(request, reply);
 
     if (request.method === "OPTIONS") {
@@ -45,7 +63,27 @@ export function buildLocalHostServer(
     done();
   });
 
-  server.setErrorHandler((error, _request, reply) => {
+  server.addHook("onResponse", (request, reply, done) => {
+    appLogger.info({
+      event: "http.response",
+      requestId: getRequestId(request),
+      method: request.method,
+      url: request.url,
+      statusCode: reply.statusCode,
+      durationMs: Date.now() - (requestStartedAt.get(request) ?? Date.now())
+    });
+    done();
+  });
+
+  server.setErrorHandler((error, request, reply) => {
+    appLogger.error({
+      event: "http.error",
+      requestId: getRequestId(request),
+      method: request.method,
+      url: request.url,
+      ...serializeError(error, true)
+    });
+
     if (error instanceof SessionNotFoundError) {
       void reply.code(404).send({
         message: error.message
@@ -90,13 +128,22 @@ export function buildLocalHostServer(
       request: FastifyRequest<{ Params: SessionParams }>,
       reply: FastifyReply
     ) => {
+      const requestId = getRequestId(request);
+      const routeLogger = appLogger.child({
+        requestId,
+        sessionId: request.params.sessionId
+      });
       const body = contracts.submitLocalCommandRequestSchema.parse(
         request.body ?? {}
       );
       const response = contracts.submitLocalCommandResponseSchema.parse(
         await sessionStore.submitCommand(
           request.params.sessionId,
-          body.playerCommand
+          body.playerCommand,
+          {
+            logger: routeLogger,
+            requestId
+          }
         )
       );
 
@@ -110,6 +157,11 @@ export function buildLocalHostServer(
       request: FastifyRequest<{ Params: SessionParams }>,
       reply: FastifyReply
     ) => {
+      const requestId = getRequestId(request);
+      const routeLogger = appLogger.child({
+        requestId,
+        sessionId: request.params.sessionId
+      });
       const { snapshotEvent, unsubscribe } = sessionStore.subscribe(
         request.params.sessionId,
         (event) => {
@@ -128,10 +180,16 @@ export function buildLocalHostServer(
       reply.raw.setHeader("Vary", "Origin");
       reply.raw.flushHeaders?.();
 
+      routeLogger.info({
+        event: "sse.connect"
+      });
       writeSseEvent(reply, snapshotEvent);
 
       request.raw.on("close", () => {
         unsubscribe();
+        routeLogger.info({
+          event: "sse.disconnect"
+        });
         if (!reply.raw.destroyed) {
           reply.raw.end();
         }
@@ -167,4 +225,12 @@ function getAllowedOrigin(originHeader: string | string[] | undefined): string {
   return typeof originHeader === "string" && originHeader.length > 0
     ? originHeader
     : "*";
+}
+
+function getRequestId(request: FastifyRequest): string {
+  const header = request.headers["x-request-id"];
+
+  return typeof header === "string" && header.length > 0
+    ? header
+    : String(request.id);
 }

@@ -19,6 +19,7 @@ import {
   submitLocalCommandResponseSchema
 } from "@ai-western-town/contracts";
 import { createStarterTownSessionRuntime } from "@ai-western-town/app-services";
+import { createMemoryLogger } from "@ai-western-town/observability";
 
 import { buildLocalHostServer } from "./server.js";
 
@@ -258,6 +259,127 @@ test("entrypoint starts the local host when executed with node", async () => {
       child.kill();
       await once(child, "exit");
     }
+  }
+});
+
+test("local host logs HTTP request and response events", async () => {
+  const memory = createMemoryLogger();
+  const server = buildLocalHostServer({
+    logger: false,
+    observabilityLogger: memory.logger
+  });
+
+  await server.listen({
+    port: 0,
+    host: "127.0.0.1"
+  });
+
+  const baseUrl = `http://127.0.0.1:${getAddressInfo(server.server.address()).port}`;
+
+  try {
+    const response = await fetch(`${baseUrl}/sessions`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-request-id": "req-http-1"
+      },
+      body: JSON.stringify({})
+    });
+
+    assert.equal(response.status, 201);
+
+    const events = memory.records.map((record) => record.fields);
+
+    assert.equal(events.some((event) => event.event === "http.request"), true);
+    assert.equal(events.some((event) => event.event === "http.response"), true);
+    assert.equal(
+      events.find((event) => event.event === "http.request")?.requestId,
+      "req-http-1"
+    );
+    assert.equal(
+      events.find((event) => event.event === "http.response")?.statusCode,
+      201
+    );
+  } finally {
+    await server.close();
+  }
+});
+
+test("local host passes request logger context into submitCommand", async () => {
+  const memory = createMemoryLogger();
+  const runtime = createStarterTownSessionRuntime({
+    logger: memory.logger,
+    modelRef: "test-local-model",
+    llmGateway: createFakeLLMGateway(
+      "{\"visibleText\":\"Mara keeps her answer short.\",\"gestureTags\":[\"guarded\"]}"
+    )
+  });
+  const server = buildLocalHostServer({
+    logger: false,
+    observabilityLogger: memory.logger,
+    sessionRuntime: runtime
+  });
+
+  await server.listen({
+    port: 0,
+    host: "127.0.0.1"
+  });
+
+  const baseUrl = `http://127.0.0.1:${getAddressInfo(server.server.address()).port}`;
+
+  try {
+    const createResponse = await fetch(`${baseUrl}/sessions`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({})
+    });
+    const createPayload = createLocalSessionResponseSchema.parse(
+      (await createResponse.json()) as CreateLocalSessionResponse
+    );
+
+    const commandResponse = await fetch(
+      `${baseUrl}/sessions/${createPayload.session.sessionId}/commands`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "req-command-1"
+        },
+        body: JSON.stringify({
+          playerCommand: {
+            commandId: "cmd-logged",
+            commandType: "social",
+            parsedAction: {
+              actionId: "act-approach-bartender",
+              actionClass: "intervene",
+              actionType: "ask_bartender_about_room",
+              targetActorId: "bartender",
+              targetNpcId: "bartender",
+              tags: ["social", "probe", "public"]
+            },
+            issuedAtTick: 0,
+            consumesTick: true,
+            metadata: {
+              commandText: "问问酒保刚才为什么突然安静"
+            }
+          }
+        })
+      }
+    );
+
+    assert.equal(commandResponse.status, 202);
+
+    const submitStart = memory.records.find(
+      (record) => record.fields.event === "submitCommand.start"
+    )?.fields;
+
+    assert.equal(submitStart?.requestId, "req-command-1");
+    assert.equal(submitStart?.sessionId, createPayload.session.sessionId);
+    assert.equal(submitStart?.commandId, "cmd-logged");
+  } finally {
+    await server.close();
   }
 });
 
