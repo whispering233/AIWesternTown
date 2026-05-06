@@ -41,6 +41,12 @@ import {
   type LLMGatewayConfig,
   type VisibleOutcomeRenderPromptInput
 } from "@ai-western-town/llm-runtime";
+import {
+  createNoopLogger,
+  serializeError,
+  type LLMLoggingConfig,
+  type Logger
+} from "@ai-western-town/observability";
 
 import { buildStarterTownPlayableSlice } from "./starter-town-player-loop.js";
 
@@ -72,9 +78,16 @@ export type StarterTownSessionRuntime = {
   ): StarterTownSessionState;
   submitCommand(
     state: StarterTownSessionState,
-    playerCommand: PlayerCommandEnvelope
+    playerCommand: PlayerCommandEnvelope,
+    context?: StarterTownSubmitCommandContext
   ): Promise<StarterTownCommandResult>;
   getRecentLLMCalls(): LLMCallRecord[];
+};
+
+export type StarterTownSubmitCommandContext = {
+  requestId?: string;
+  sessionId?: string;
+  logger?: Logger;
 };
 
 export type CreateStarterTownSessionRuntimeOptions = {
@@ -84,6 +97,10 @@ export type CreateStarterTownSessionRuntimeOptions = {
   llmRecorder?: LLMCallRecorder;
   modelRef?: string;
   llmTimeoutMs?: number;
+  logger?: Logger;
+  llmLogging?: LLMLoggingConfig & {
+    enabled: boolean;
+  };
 };
 
 const DEFAULT_MODEL_REF = "gemma-4-e2b-uncensored-hauhaucs-aggressive";
@@ -95,6 +112,7 @@ export function createStarterTownSessionRuntime(
   options: CreateStarterTownSessionRuntimeOptions = {}
 ): StarterTownSessionRuntime {
   const bundle = options.bundle ?? starterTownContent;
+  const runtimeLogger = options.logger ?? createNoopLogger();
   const llmGateway =
     options.llmGateway ??
     createLLMGateway(
@@ -103,6 +121,10 @@ export function createStarterTownSessionRuntime(
         mock: {
           rawText: '{"visibleText":"The room absorbs the move.","gestureTags":["plain"]}'
         }
+      },
+      {
+        logger: runtimeLogger,
+        llmLogging: options.llmLogging
       }
     );
   const llmRecorder = options.llmRecorder ?? createLLMCallRecorder();
@@ -128,99 +150,151 @@ export function createStarterTownSessionRuntime(
 
     async submitCommand(
       state: StarterTownSessionState,
-      playerCommand: PlayerCommandEnvelope
+      playerCommand: PlayerCommandEnvelope,
+      context: StarterTownSubmitCommandContext = {}
     ): Promise<StarterTownCommandResult> {
-      const simulation = advanceWorldSimulation(
-        buildWorldSimulationInput(bundle, state, playerCommand)
-      );
-      const npcResults: NpcCognitionRunResult[] = [];
-      const npcWorldEvents: WorldEventRecord[] = [];
-      const llmTraceIds: string[] = [];
+      const commandLogger = (context.logger ?? runtimeLogger).child({
+        module: "app-services",
+        requestId: context.requestId,
+        sessionId: context.sessionId,
+        commandId: playerCommand.commandId
+      });
+      const startedAt = Date.now();
 
-      for (const plannedExecution of simulation.executionPlan.npcExecutions) {
-        const cognitionInput = buildNpcCognitionInput(
-          bundle,
-          state,
-          playerCommand,
-          plannedExecution,
-          simulation.advancedToTick
+      commandLogger.info({
+        event: "submitCommand.start",
+        worldTickBefore: state.worldTick,
+        commandType: playerCommand.commandType,
+        commandText: getPlayerCommandText(playerCommand)
+      });
+
+      try {
+        const simulation = advanceWorldSimulation(
+          buildWorldSimulationInput(bundle, state, playerCommand)
         );
-        const cognitionResult = runNpcCognition(cognitionInput);
-        npcResults.push(cognitionResult);
+        const npcResults: NpcCognitionRunResult[] = [];
+        const npcWorldEvents: WorldEventRecord[] = [];
+        const llmTraceIds: string[] = [];
 
-        const execution = cognitionResult.lite.executionResult;
-        if (!execution) {
-          continue;
+        commandLogger.info({
+          event: "submitCommand.worldTick.done",
+          worldTickAfter: simulation.advancedToTick,
+          appendedEventCount: simulation.appendedEvents.length,
+          plannedNpcExecutionCount: simulation.executionPlan.npcExecutions.length
+        });
+
+        for (const plannedExecution of simulation.executionPlan.npcExecutions) {
+          const cognitionInput = buildNpcCognitionInput(
+            bundle,
+            state,
+            playerCommand,
+            plannedExecution,
+            simulation.advancedToTick
+          );
+          const cognitionResult = runNpcCognition(cognitionInput);
+          npcResults.push(cognitionResult);
+
+          const execution = cognitionResult.lite.executionResult;
+          if (!execution) {
+            continue;
+          }
+
+          const renderResult = await renderVisibleOutcome({
+            llmGateway,
+            llmRecorder,
+            logger: commandLogger.child({
+              npcId: plannedExecution.npcId
+            }),
+            modelRef,
+            timeoutMs,
+            worldTick: simulation.advancedToTick,
+            npcId: plannedExecution.npcId,
+            input: buildVisibleOutcomeInput(
+              playerCommand,
+              execution,
+              simulation.appendedEvents
+            )
+          });
+          llmTraceIds.push(renderResult.traceId);
+          npcWorldEvents.push(
+            ...execution.emittedEvents.map((event) => ({
+              ...event,
+              sourceCommandId: event.sourceCommandId ?? playerCommand.commandId,
+              summary: renderResult.visibleText,
+              payload: {
+                ...(event.payload ?? {}),
+                visibleText: renderResult.visibleText,
+                gestureTags: renderResult.gestureTags ?? [],
+                llmTraceId: renderResult.traceId
+              }
+            }))
+          );
         }
 
-        const renderResult = await renderVisibleOutcome({
-          llmGateway,
-          llmRecorder,
-          modelRef,
-          timeoutMs,
-          worldTick: simulation.advancedToTick,
-          npcId: plannedExecution.npcId,
-          input: buildVisibleOutcomeInput(
-            playerCommand,
-            execution,
-            simulation.appendedEvents
+        commandLogger.info({
+          event: "submitCommand.npcCognition.done",
+          cognitionResultCount: npcResults.length,
+          npcWorldEventCount: npcWorldEvents.length
+        });
+
+        const worldEvents = [...simulation.appendedEvents, ...npcWorldEvents];
+        const nextState = buildNextState(bundle, state, playerCommand, {
+          advancedToTick: simulation.advancedToTick,
+          npcScheduleStates: state.npcScheduleStates,
+          activeLongActions: state.activeLongActions,
+          recentEvents: [...state.recentEvents, ...worldEvents].slice(
+            -MAX_RECENT_EVENTS
+          ),
+          activeDialogueThread: simulation.statePatches.nextDialogueThread,
+          pendingInterrupt: simulation.statePatches.nextPendingInterrupt,
+          farFieldBacklog: applyFarFieldBacklogPatch(
+            state.farFieldBacklog,
+            simulation.statePatches.farFieldBacklogPatch
           )
         });
-        llmTraceIds.push(renderResult.traceId);
-        npcWorldEvents.push(
-          ...execution.emittedEvents.map((event) => ({
-            ...event,
-            sourceCommandId: event.sourceCommandId ?? playerCommand.commandId,
-            summary: renderResult.visibleText,
-            payload: {
-              ...(event.payload ?? {}),
-              visibleText: renderResult.visibleText,
-              gestureTags: renderResult.gestureTags ?? [],
-              llmTraceId: renderResult.traceId
-            }
-          }))
-        );
+        const tickTrace: TickTraceRecord = {
+          traceId: `trace-${simulation.advancedToTick}-${playerCommand.commandId}`,
+          worldTick: simulation.advancedToTick,
+          playerCommand,
+          runModeBefore: simulation.debugSummary.runModeBefore,
+          runModeAfter: simulation.debugSummary.runModeAfter,
+          scheduleDecisions: simulation.scheduleDecisions,
+          npcExecutions: simulation.executionPlan.npcExecutions,
+          appendedEventIds: worldEvents.map((event) => event.eventId),
+          llmTraceIds,
+          debugSummary: {
+            ...simulation.debugSummary,
+            budgetNotes: [
+              ...simulation.debugSummary.budgetNotes,
+              `cognition_results=${npcResults.length}`,
+              `llm_visible_renders=${llmTraceIds.length}`
+            ]
+          }
+        };
+        const result = {
+          nextState,
+          worldEvents,
+          tickTrace,
+          llmCalls: llmRecorder.getRecentCalls()
+        };
+
+        commandLogger.info({
+          event: "submitCommand.done",
+          durationMs: Date.now() - startedAt,
+          worldTickAfter: nextState.worldTick,
+          worldEventCount: worldEvents.length,
+          llmCallCount: llmTraceIds.length
+        });
+
+        return result;
+      } catch (error) {
+        commandLogger.error({
+          event: "submitCommand.error",
+          durationMs: Date.now() - startedAt,
+          ...serializeError(error, true)
+        });
+        throw error;
       }
-
-      const worldEvents = [...simulation.appendedEvents, ...npcWorldEvents];
-      const nextState = buildNextState(bundle, state, playerCommand, {
-        advancedToTick: simulation.advancedToTick,
-        npcScheduleStates: state.npcScheduleStates,
-        activeLongActions: state.activeLongActions,
-        recentEvents: [...state.recentEvents, ...worldEvents].slice(-MAX_RECENT_EVENTS),
-        activeDialogueThread: simulation.statePatches.nextDialogueThread,
-        pendingInterrupt: simulation.statePatches.nextPendingInterrupt,
-        farFieldBacklog: applyFarFieldBacklogPatch(
-          state.farFieldBacklog,
-          simulation.statePatches.farFieldBacklogPatch
-        )
-      });
-      const tickTrace: TickTraceRecord = {
-        traceId: `trace-${simulation.advancedToTick}-${playerCommand.commandId}`,
-        worldTick: simulation.advancedToTick,
-        playerCommand,
-        runModeBefore: simulation.debugSummary.runModeBefore,
-        runModeAfter: simulation.debugSummary.runModeAfter,
-        scheduleDecisions: simulation.scheduleDecisions,
-        npcExecutions: simulation.executionPlan.npcExecutions,
-        appendedEventIds: worldEvents.map((event) => event.eventId),
-        llmTraceIds,
-        debugSummary: {
-          ...simulation.debugSummary,
-          budgetNotes: [
-            ...simulation.debugSummary.budgetNotes,
-            `cognition_results=${npcResults.length}`,
-            `llm_visible_renders=${llmTraceIds.length}`
-          ]
-        }
-      };
-
-      return {
-        nextState,
-        worldEvents,
-        tickTrace,
-        llmCalls: llmRecorder.getRecentCalls()
-      };
     },
 
     getRecentLLMCalls(): LLMCallRecord[] {
@@ -550,6 +624,7 @@ function buildActionCandidates(
 async function renderVisibleOutcome(input: {
   llmGateway: LLMGateway;
   llmRecorder: LLMCallRecorder;
+  logger: Logger;
   modelRef: string;
   timeoutMs: number;
   worldTick: number;
@@ -577,6 +652,15 @@ async function renderVisibleOutcome(input: {
     topP: spec.providerHints?.topP,
     timeoutMs: input.timeoutMs
   };
+
+  input.logger.info({
+    event: "llm.visibleOutcome.start",
+    worldTick: input.worldTick,
+    npcId: input.npcId,
+    model: input.modelRef,
+    llmRequestId: request.requestId
+  });
+
   const response = await input.llmRecorder.recordInvocation(
     {
       request,
@@ -599,6 +683,14 @@ async function renderVisibleOutcome(input: {
   const traceId = recentCall?.traceId ?? `llm-trace-${request.requestId}`;
 
   if (response.finishReason === "error" || response.finishReason === "timeout") {
+    input.logger.warn({
+      event: "llm.visibleOutcome.fallback",
+      reason: response.finishReason,
+      llmRequestId: request.requestId,
+      errorCode: response.errorCode,
+      errorMessage: response.errorMessage
+    });
+
     return {
       traceId,
       visibleText: fallback.visibleText,
@@ -615,12 +707,26 @@ async function renderVisibleOutcome(input: {
   });
 
   if (parsed.ok) {
+    input.logger.info({
+      event: "llm.visibleOutcome.done",
+      llmRequestId: request.requestId,
+      traceId,
+      finishReason: response.finishReason
+    });
+
     return {
       traceId,
       visibleText: parsed.value.visibleText,
       gestureTags: parsed.value.gestureTags
     };
   }
+
+  input.logger.warn({
+    event: "llm.visibleOutcome.fallback",
+    reason: "parse_failed",
+    llmRequestId: request.requestId,
+    traceId
+  });
 
   return {
     traceId,

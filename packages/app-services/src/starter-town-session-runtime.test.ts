@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { PlayerCommandEnvelope, ProviderRequest, ProviderResponse } from "@ai-western-town/contracts";
+import { createMemoryLogger } from "@ai-western-town/observability";
 
 import { createStarterTownSessionRuntime } from "./index.js";
 
@@ -81,4 +82,104 @@ test("starter town session runtime runs game, cognition, and visible outcome LLM
   assert.equal(result.tickTrace.npcExecutions.length > 0, true);
   assert.equal(result.llmCalls.length, 1);
   assert.equal(result.llmCalls[0]?.traceId, result.tickTrace.llmTraceIds?.[0]);
+});
+
+test("starter town session runtime logs submitCommand success stages", async () => {
+  const memory = createMemoryLogger();
+  const runtime = createStarterTownSessionRuntime({
+    logger: memory.logger,
+    modelRef: "test-local-model",
+    llmGateway: {
+      getProvider() {
+        throw new Error("getProvider is not used by this app-service test.");
+      },
+      async healthCheck() {
+        return {
+          providerName: "fake-local",
+          ok: true
+        };
+      },
+      async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+        return {
+          requestId: request.requestId,
+          providerName: "fake-local",
+          modelRef: request.modelRef,
+          finishReason: "stop",
+          rawText:
+            "{\"visibleText\":\"Mara keeps her answer short.\",\"gestureTags\":[\"guarded\"]}"
+        };
+      }
+    }
+  });
+  const initialState = runtime.createInitialState({
+    currentSceneId: "saloon"
+  });
+
+  await runtime.submitCommand(initialState, createCommand(), {
+    requestId: "req-1",
+    sessionId: "session-1"
+  });
+
+  const events = memory.records.map((record) => record.fields.event);
+
+  assert.deepEqual(
+    events.filter((event) => String(event).startsWith("submitCommand")),
+    [
+      "submitCommand.start",
+      "submitCommand.worldTick.done",
+      "submitCommand.npcCognition.done",
+      "submitCommand.done"
+    ]
+  );
+  assert.equal(memory.records[0]?.fields.requestId, "req-1");
+  assert.equal(memory.records[0]?.fields.sessionId, "session-1");
+  assert.equal(memory.records[0]?.fields.commandId, "cmd-approach-bartender");
+});
+
+test("starter town session runtime logs visible outcome fallback", async () => {
+  const memory = createMemoryLogger();
+  const runtime = createStarterTownSessionRuntime({
+    logger: memory.logger,
+    modelRef: "test-local-model",
+    llmGateway: {
+      getProvider() {
+        throw new Error("getProvider is not used by this app-service test.");
+      },
+      async healthCheck() {
+        return {
+          providerName: "fake-local",
+          ok: true
+        };
+      },
+      async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+        return {
+          requestId: request.requestId,
+          providerName: "fake-local",
+          modelRef: request.modelRef,
+          finishReason: "timeout",
+          rawText: "",
+          errorCode: "provider_timeout",
+          errorMessage: "Model service timed out."
+        };
+      }
+    }
+  });
+
+  await runtime.submitCommand(
+    runtime.createInitialState({
+      currentSceneId: "saloon"
+    }),
+    createCommand(),
+    {
+      requestId: "req-2",
+      sessionId: "session-2"
+    }
+  );
+
+  const fallbackEvent = memory.records.find(
+    (record) => record.fields.event === "llm.visibleOutcome.fallback"
+  )?.fields;
+
+  assert.equal(fallbackEvent?.requestId, "req-2");
+  assert.equal(fallbackEvent?.reason, "timeout");
 });

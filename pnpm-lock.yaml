@@ -103,6 +103,9 @@ importers:
       '@ai-western-town/llm-runtime':
         specifier: workspace:*
         version: link:../llm-runtime
+      '@ai-western-town/observability':
+        specifier: workspace:*
+        version: link:../observability
       '@ai-western-town/starter-town-content':
         specifier: workspace:*
         version: link:../../content/starter-town

@@ -12,8 +12,8 @@
     }
   },
   "scripts": {
-    "build": "pnpm --filter @ai-western-town/content-schema build && pnpm --filter @ai-western-town/contracts build && pnpm --filter @ai-western-town/game-core build && pnpm --filter @ai-western-town/cognition-core build && pnpm --filter @ai-western-town/llm-runtime build && pnpm --filter @ai-western-town/starter-town-content build && tsc -p tsconfig.json",
-    "typecheck": "pnpm --filter @ai-western-town/content-schema build && pnpm --filter @ai-western-town/contracts build && pnpm --filter @ai-western-town/game-core build && pnpm --filter @ai-western-town/cognition-core build && pnpm --filter @ai-western-town/llm-runtime build && pnpm --filter @ai-western-town/starter-town-content build && tsc -p tsconfig.json --noEmit",
+    "build": "pnpm --filter @ai-western-town/observability build && pnpm --filter @ai-western-town/content-schema build && pnpm --filter @ai-western-town/contracts build && pnpm --filter @ai-western-town/game-core build && pnpm --filter @ai-western-town/cognition-core build && pnpm --filter @ai-western-town/llm-runtime build && pnpm --filter @ai-western-town/starter-town-content build && tsc -p tsconfig.json",
+    "typecheck": "pnpm --filter @ai-western-town/observability build && pnpm --filter @ai-western-town/content-schema build && pnpm --filter @ai-western-town/contracts build && pnpm --filter @ai-western-town/game-core build && pnpm --filter @ai-western-town/cognition-core build && pnpm --filter @ai-western-town/llm-runtime build && pnpm --filter @ai-western-town/starter-town-content build && tsc -p tsconfig.json --noEmit",
     "test": "pnpm run build && node --test dist/**/*.test.js"
   },
   "dependencies": {
@@ -22,6 +22,7 @@
     "@ai-western-town/cognition-core": "workspace:*",
     "@ai-western-town/game-core": "workspace:*",
     "@ai-western-town/llm-runtime": "workspace:*",
+    "@ai-western-town/observability": "workspace:*",
     "@ai-western-town/starter-town-content": "workspace:*"
   },
   "devDependencies": {
