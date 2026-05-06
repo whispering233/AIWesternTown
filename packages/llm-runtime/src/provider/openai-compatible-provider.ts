@@ -8,6 +8,14 @@ import {
   type ProviderRequest,
   type ProviderResponse
 } from "./types.js";
+import {
+  createNoopLogger,
+  sanitizeLLMRequestBody,
+  sanitizeLLMResponseText,
+  serializeError,
+  type LLMLoggingConfig,
+  type Logger
+} from "@ai-western-town/observability";
 
 export type OpenAICompatibleProviderOptions = {
   name: string;
@@ -18,6 +26,10 @@ export type OpenAICompatibleProviderOptions = {
   chatCompletionsPath?: string;
   healthPath?: string;
   capabilities?: Partial<ProviderCapability>;
+  logger?: Logger;
+  llmLogging?: LLMLoggingConfig & {
+    enabled: boolean;
+  };
 };
 
 type OpenAIChatChoice = {
@@ -42,6 +54,13 @@ const OPENAI_COMPATIBLE_CAPABILITIES: ProviderCapability = {
   supportsAssistantRole: true,
   recommendedTimeoutMs: 10_000
 };
+const DEFAULT_LLM_LOGGING_CONFIG: LLMLoggingConfig & { enabled: boolean } = {
+  enabled: false,
+  includeMessages: false,
+  includeRawResponse: false,
+  includeStack: false,
+  maxTextLength: 20_000
+};
 
 export class OpenAICompatibleProvider implements LLMProvider {
   readonly #options: OpenAICompatibleProviderOptions;
@@ -65,6 +84,10 @@ export class OpenAICompatibleProvider implements LLMProvider {
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
     const fetchFn = resolveFetch(this.#options.fetchFn);
+    const logger = this.#options.logger ?? createNoopLogger();
+    const llmLogging =
+      this.#options.llmLogging ?? DEFAULT_LLM_LOGGING_CONFIG;
+    const startedAt = Date.now();
 
     if (!fetchFn) {
       return createProviderErrorResponse(
@@ -79,34 +102,100 @@ export class OpenAICompatibleProvider implements LLMProvider {
     const timeout = setTimeout(() => {
       controller.abort();
     }, request.timeoutMs);
+    const url = joinProviderUrl(
+      this.#options.baseUrl,
+      this.#options.chatCompletionsPath ??
+        getDefaultOpenAIPath(this.#options.baseUrl, "/chat/completions")
+    );
+    const requestBody = createChatCompletionBody(request, this.#capabilities);
+
+    if (llmLogging.enabled) {
+      logger.info({
+        event: "llm.request",
+        provider: this.getName(),
+        requestId: request.requestId,
+        model: request.modelRef,
+        url,
+        ...sanitizeLLMRequestBody(requestBody, llmLogging)
+      });
+    }
 
     try {
       const response = await fetchFn(
-        joinProviderUrl(
-          this.#options.baseUrl,
-          this.#options.chatCompletionsPath ??
-            getDefaultOpenAIPath(this.#options.baseUrl, "/chat/completions")
-        ),
+        url,
         {
           method: "POST",
           headers: this.#buildHeaders(),
-          body: JSON.stringify(createChatCompletionBody(request, this.#capabilities)),
+          body: JSON.stringify(requestBody),
           signal: controller.signal
         }
       );
       const responseText = await response.text();
 
       if (!response.ok) {
-        return createProviderErrorResponse(
+        const providerResponse = createProviderErrorResponse(
           request,
           this.getName(),
           "provider_http_error",
           `Model service returned ${response.status} ${response.statusText}: ${responseText}`
         );
+
+        if (llmLogging.enabled) {
+          logger.error({
+            event: "llm.error",
+            provider: this.getName(),
+            requestId: request.requestId,
+            model: request.modelRef,
+            durationMs: Date.now() - startedAt,
+            finishReason: providerResponse.finishReason,
+            errorCode: providerResponse.errorCode,
+            errorMessage: providerResponse.errorMessage,
+            ...sanitizeLLMResponseText(responseText, llmLogging)
+          });
+        }
+
+        return providerResponse;
       }
 
-      return this.#mapCompletionResponse(request, responseText);
+      const mapped = this.#mapCompletionResponse(request, responseText);
+
+      if (llmLogging.enabled) {
+        const fields = {
+          event: mapped.finishReason === "error" ? "llm.error" : "llm.response",
+          provider: this.getName(),
+          requestId: request.requestId,
+          model: request.modelRef,
+          durationMs: Date.now() - startedAt,
+          finishReason: mapped.finishReason,
+          usage: mapped.usage,
+          errorCode: mapped.errorCode,
+          errorMessage: mapped.errorMessage,
+          ...sanitizeLLMResponseText(
+            mapped.rawText || responseText,
+            llmLogging
+          )
+        };
+
+        if (mapped.finishReason === "error") {
+          logger.error(fields);
+        } else {
+          logger.info(fields);
+        }
+      }
+
+      return mapped;
     } catch (error) {
+      if (llmLogging.enabled) {
+        logger.error({
+          event: "llm.error",
+          provider: this.getName(),
+          requestId: request.requestId,
+          model: request.modelRef,
+          durationMs: Date.now() - startedAt,
+          ...serializeError(error, llmLogging.includeStack)
+        });
+      }
+
       if (isAbortError(error)) {
         return createProviderErrorResponse(
           request,

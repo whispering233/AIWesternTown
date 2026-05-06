@@ -11,6 +11,10 @@ import {
   type ProviderRequest,
   type ProviderResponse
 } from "../provider/index.js";
+import type {
+  LLMLoggingConfig,
+  Logger
+} from "@ai-western-town/observability";
 
 export type {
   LLMProvider,
@@ -28,6 +32,12 @@ export type LLMGatewayConfig = {
 };
 
 export type LLMGatewayEnv = Partial<Record<string, string | undefined>>;
+export type CreateLLMGatewayOptions = {
+  logger?: Logger;
+  llmLogging?: LLMLoggingConfig & {
+    enabled: boolean;
+  };
+};
 
 export interface LLMGateway {
   getProvider(): LLMProvider;
@@ -37,22 +47,31 @@ export interface LLMGateway {
 
 const DEFAULT_LOCAL_BASE_URL = "http://127.0.0.1:1234/v1";
 
-export function createLLMGateway(config: LLMGatewayConfig): LLMGateway {
-  return new DefaultLLMGateway(createProviderFromConfig(config));
+export function createLLMGateway(
+  config: LLMGatewayConfig,
+  options: CreateLLMGatewayOptions = {}
+): LLMGateway {
+  return new DefaultLLMGateway(createProviderFromConfig(config, options));
 }
 
 export function createProviderFromConfig(
-  config: LLMGatewayConfig
+  config: LLMGatewayConfig,
+  options: CreateLLMGatewayOptions = {}
 ): LLMProvider {
   switch (config.provider) {
     case "mock":
       return createMockProvider(config.mock);
     case "local":
-      return createLocalProvider(
-        config.local ?? {
+      return createLocalProvider({
+        ...(config.local ?? {
           baseUrl: DEFAULT_LOCAL_BASE_URL
-        }
-      );
+        }),
+        logger: options.logger?.child({
+          module: "llm-runtime",
+          provider: "local"
+        }),
+        llmLogging: options.llmLogging
+      });
     case "cloud":
       return createCloudProviderPlaceholder(config.cloud);
   }

@@ -166,6 +166,9 @@ importers:
       '@ai-western-town/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@ai-western-town/observability':
+        specifier: workspace:*
+        version: link:../observability
     devDependencies:
       '@types/node':
         specifier: ^24.9.1

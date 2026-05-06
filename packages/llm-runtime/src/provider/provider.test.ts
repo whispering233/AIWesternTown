@@ -7,6 +7,7 @@ import {
   createMockProvider,
   type ProviderRequest
 } from "./index.js";
+import { createMemoryLogger } from "@ai-western-town/observability";
 
 function createProviderRequest(): ProviderRequest {
   return {
@@ -270,4 +271,119 @@ test("cloud provider placeholder returns a structured not-configured error", asy
   assert.equal(response.finishReason, "error");
   assert.equal(response.errorCode, "cloud_provider_not_configured");
   assert.equal(response.rawText, "");
+});
+
+test("local provider logs LLM request and response without authorization headers", async () => {
+  const memory = createMemoryLogger();
+  const provider = createLocalProvider({
+    baseUrl: "http://127.0.0.1:1234/v1",
+    apiKey: "secret-key",
+    logger: memory.logger,
+    llmLogging: {
+      enabled: true,
+      includeMessages: true,
+      includeRawResponse: true,
+      includeStack: true,
+      maxTextLength: 1000
+    },
+    fetchFn: async () =>
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: "{\"visibleText\":\"Logged response.\"}"
+              },
+              finish_reason: "stop"
+            }
+          ],
+          usage: {
+            prompt_tokens: 3,
+            completion_tokens: 4
+          }
+        }),
+        {
+          status: 200,
+          headers: {
+            "content-type": "application/json"
+          }
+        }
+      )
+  });
+
+  const response = await provider.invoke(createProviderRequest());
+  const events = memory.records.map((record) => record.fields);
+
+  assert.equal(response.finishReason, "stop");
+  assert.equal(events[0]?.event, "llm.request");
+  assert.equal(events[1]?.event, "llm.response");
+  assert.equal(events[0]?.provider, "local");
+  assert.equal(events[0]?.model, "local-model");
+  assert.deepEqual(events[0]?.messages, createProviderRequest().messages);
+  assert.equal(events[1]?.rawText, "{\"visibleText\":\"Logged response.\"}");
+  assert.equal(JSON.stringify(events).includes("secret-key"), false);
+  assert.equal(JSON.stringify(events).includes("authorization"), false);
+});
+
+test("local provider logs AbortError details before returning timeout response", async () => {
+  const memory = createMemoryLogger();
+  const provider = createLocalProvider({
+    baseUrl: "http://127.0.0.1:1234/v1",
+    logger: memory.logger,
+    llmLogging: {
+      enabled: true,
+      includeMessages: true,
+      includeRawResponse: true,
+      includeStack: true,
+      maxTextLength: 1000
+    },
+    fetchFn: async () => {
+      const error = new Error("This operation was aborted");
+      error.name = "AbortError";
+      throw error;
+    }
+  });
+
+  const response = await provider.invoke(createProviderRequest());
+  const errorEvent = memory.records.find(
+    (record) => record.fields.event === "llm.error"
+  )?.fields;
+
+  assert.equal(response.finishReason, "timeout");
+  assert.equal(errorEvent?.errorName, "AbortError");
+  assert.equal(errorEvent?.errorMessage, "This operation was aborted");
+  assert.equal(typeof errorEvent?.durationMs, "number");
+  assert.equal(typeof errorEvent?.stack, "string");
+});
+
+test("local provider logs non-2xx model responses as LLM errors", async () => {
+  const memory = createMemoryLogger();
+  const provider = createLocalProvider({
+    baseUrl: "http://127.0.0.1:1234/v1",
+    logger: memory.logger,
+    llmLogging: {
+      enabled: true,
+      includeMessages: true,
+      includeRawResponse: true,
+      includeStack: true,
+      maxTextLength: 1000
+    },
+    fetchFn: async () =>
+      new Response("model not loaded", {
+        status: 503,
+        statusText: "Service Unavailable"
+      })
+  });
+
+  const response = await provider.invoke(createProviderRequest());
+  const errorEvent = memory.records.find(
+    (record) => record.fields.event === "llm.error"
+  )?.fields;
+
+  assert.equal(response.finishReason, "error");
+  assert.equal(response.errorCode, "provider_http_error");
+  assert.equal(errorEvent?.finishReason, "error");
+  assert.equal(errorEvent?.errorCode, "provider_http_error");
+  assert.match(String(errorEvent?.errorMessage), /503/);
+  assert.equal(errorEvent?.rawText, "model not loaded");
 });

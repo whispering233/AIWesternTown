@@ -9,6 +9,7 @@ export {
   createProviderFromConfig
 } from "./gateway/index.js";
 export type {
+  CreateLLMGatewayOptions,
   LLMGateway,
   LLMGatewayConfig,
   LLMGatewayEnv
