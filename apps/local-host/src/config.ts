@@ -6,6 +6,11 @@ import {
   createLLMGatewayConfigFromEnv,
   type LLMGatewayConfig
 } from "@ai-western-town/llm-runtime";
+import type {
+  LLMLoggingConfig,
+  LogLevel,
+  LoggerFactoryConfig
+} from "@ai-western-town/observability";
 
 export type LocalHostRuntimeConfig = {
   port: number;
@@ -16,6 +21,12 @@ export type LocalHostLLMRuntimeConfig = {
   gateway: LLMGatewayConfig;
   modelRef: string;
   timeoutMs: number;
+};
+
+export type LocalHostLoggingConfig = LoggerFactoryConfig & {
+  llm: LLMLoggingConfig & {
+    enabled: boolean;
+  };
 };
 
 export type LocalHostEnv = Record<string, string | undefined>;
@@ -30,6 +41,11 @@ const DEFAULT_PORT = 8787;
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_LOCAL_LLM_MODEL = "gemma-4-e2b-uncensored-hauhaucs-aggressive";
 const DEFAULT_LLM_TIMEOUT_MS = 10_000;
+const DEFAULT_LOG_LEVEL: LogLevel = "debug";
+const DEFAULT_LOG_DIR = "logs";
+const DEFAULT_LOG_FILE = "local-host.jsonl";
+const DEFAULT_SEQ_URL = "http://127.0.0.1:5341";
+const DEFAULT_LLM_LOG_TEXT_LENGTH = 20_000;
 
 export async function loadLocalHostEnvFile(
   options: LoadLocalHostEnvFileOptions = {}
@@ -91,6 +107,38 @@ export function resolveLocalHostLLMRuntimeConfig(
       DEFAULT_LLM_TIMEOUT_MS,
       "LLM_TIMEOUT_MS"
     )
+  };
+}
+
+export function resolveLocalHostLoggingConfig(
+  env: LocalHostEnv = process.env,
+  cwd = process.cwd()
+): LocalHostLoggingConfig {
+  return {
+    enabled: parseBoolean(env.LOG_ENABLED, true),
+    level: parseLogLevel(env.LOG_LEVEL, DEFAULT_LOG_LEVEL),
+    filePath: resolve(
+      cwd,
+      env.LOG_DIR ?? DEFAULT_LOG_DIR,
+      env.LOG_FILE ?? DEFAULT_LOG_FILE
+    ),
+    console: parseBoolean(env.LOG_CONSOLE, true),
+    seq: {
+      enabled: parseBoolean(env.LOG_SEQ_ENABLED, false),
+      url: env.LOG_SEQ_URL ?? DEFAULT_SEQ_URL,
+      apiKey: env.LOG_SEQ_API_KEY
+    },
+    llm: {
+      enabled: parseBoolean(env.LOG_LLM_ENABLED, true),
+      includeMessages: parseBoolean(env.LOG_LLM_INCLUDE_MESSAGES, true),
+      includeRawResponse: parseBoolean(env.LOG_LLM_INCLUDE_RAW_RESPONSE, true),
+      includeStack: parseBoolean(env.LOG_LLM_INCLUDE_STACK, true),
+      maxTextLength: parsePositiveInteger(
+        env.LOG_LLM_MAX_TEXT_LENGTH,
+        DEFAULT_LLM_LOG_TEXT_LENGTH,
+        "LOG_LLM_MAX_TEXT_LENGTH"
+      )
+    }
   };
 }
 
@@ -188,6 +236,28 @@ function parsePositiveInteger(
   }
 
   return parsed;
+}
+
+function parseLogLevel(
+  value: string | undefined,
+  defaultValue: LogLevel
+): LogLevel {
+  if (value === undefined) {
+    return defaultValue;
+  }
+
+  if (
+    value === "debug" ||
+    value === "info" ||
+    value === "warn" ||
+    value === "error"
+  ) {
+    return value;
+  }
+
+  throw new Error(
+    `Invalid LOG_LEVEL "${value}". Expected debug, info, warn, or error.`
+  );
 }
 
 function parseBoolean(value: string | undefined, defaultValue: boolean): boolean {

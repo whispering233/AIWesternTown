@@ -6,6 +6,7 @@ import test from "node:test";
 
 import {
   loadLocalHostEnvFile,
+  resolveLocalHostLoggingConfig,
   resolveLocalHostLLMRuntimeConfig,
   resolveLocalHostRuntimeConfig
 } from "./config.js";
@@ -78,4 +79,56 @@ test("resolves local LLM runtime settings with the configured default local mode
     "gemma-4-e2b-uncensored-hauhaucs-aggressive"
   );
   assert.equal(config.timeoutMs, 10_000);
+});
+
+test("resolves logging defaults for local development", () => {
+  const config = resolveLocalHostLoggingConfig({}, "C:\\repo");
+
+  assert.equal(config.enabled, true);
+  assert.equal(config.level, "debug");
+  assert.equal(config.console, true);
+  assert.equal(config.filePath, "C:\\repo\\logs\\local-host.jsonl");
+  assert.equal(config.seq.enabled, false);
+  assert.equal(config.seq.url, "http://127.0.0.1:5341");
+  assert.equal(config.llm.enabled, true);
+  assert.equal(config.llm.includeMessages, true);
+  assert.equal(config.llm.includeRawResponse, true);
+  assert.equal(config.llm.includeStack, true);
+  assert.equal(config.llm.maxTextLength, 20000);
+});
+
+test("resolves logging overrides from environment", () => {
+  const config = resolveLocalHostLoggingConfig(
+    {
+      LOG_ENABLED: "false",
+      LOG_LEVEL: "warn",
+      LOG_DIR: "runtime-logs",
+      LOG_FILE: "debug.jsonl",
+      LOG_CONSOLE: "false",
+      LOG_SEQ_ENABLED: "true",
+      LOG_SEQ_URL: "http://127.0.0.1:9999",
+      LOG_SEQ_API_KEY: "key-1",
+      LOG_LLM_ENABLED: "false",
+      LOG_LLM_INCLUDE_MESSAGES: "false",
+      LOG_LLM_INCLUDE_RAW_RESPONSE: "false",
+      LOG_LLM_INCLUDE_STACK: "false",
+      LOG_LLM_MAX_TEXT_LENGTH: "123"
+    },
+    "C:\\repo"
+  );
+
+  assert.equal(config.enabled, false);
+  assert.equal(config.level, "warn");
+  assert.equal(config.console, false);
+  assert.equal(config.filePath, "C:\\repo\\runtime-logs\\debug.jsonl");
+  assert.deepEqual(config.seq, {
+    enabled: true,
+    url: "http://127.0.0.1:9999",
+    apiKey: "key-1"
+  });
+  assert.equal(config.llm.enabled, false);
+  assert.equal(config.llm.includeMessages, false);
+  assert.equal(config.llm.includeRawResponse, false);
+  assert.equal(config.llm.includeStack, false);
+  assert.equal(config.llm.maxTextLength, 123);
 });

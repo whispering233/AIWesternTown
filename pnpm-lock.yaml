@@ -28,6 +28,9 @@ importers:
       '@ai-western-town/llm-runtime':
         specifier: workspace:*
         version: link:../../packages/llm-runtime
+      '@ai-western-town/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       fastify:
         specifier: ^5.6.1
         version: 5.8.5

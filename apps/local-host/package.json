@@ -13,8 +13,8 @@
     }
   },
   "scripts": {
-    "build": "pnpm --filter @ai-western-town/contracts build && pnpm --filter @ai-western-town/app-services build && tsc -p tsconfig.json",
-    "typecheck": "pnpm --filter @ai-western-town/contracts build && pnpm --filter @ai-western-town/app-services build && tsc -p tsconfig.json --noEmit",
+    "build": "pnpm --filter @ai-western-town/observability build && pnpm --filter @ai-western-town/contracts build && pnpm --filter @ai-western-town/app-services build && tsc -p tsconfig.json",
+    "typecheck": "pnpm --filter @ai-western-town/observability build && pnpm --filter @ai-western-town/contracts build && pnpm --filter @ai-western-town/app-services build && tsc -p tsconfig.json --noEmit",
     "test": "pnpm run build && node --test dist/**/*.test.js",
     "dev": "tsx src/index.ts"
   },
@@ -22,6 +22,7 @@
     "@ai-western-town/app-services": "workspace:*",
     "@ai-western-town/contracts": "workspace:*",
     "@ai-western-town/llm-runtime": "workspace:*",
+    "@ai-western-town/observability": "workspace:*",
     "fastify": "^5.6.1"
   },
   "devDependencies": {
