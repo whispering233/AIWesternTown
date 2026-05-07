@@ -47,11 +47,20 @@ export function createSeqSink(options: SeqSinkOptions): SeqSink {
         headers.set("x-seq-apikey", options.apiKey);
       }
 
-      await fetchFn(endpoint, {
+      const response = await fetchFn(endpoint, {
         method: "POST",
         headers,
         body: `${JSON.stringify(formatSeqEvent(level, fields, message))}\n`
       });
+
+      if (!response.ok) {
+        const responseText = await response.text().catch(() => "");
+        const suffix = responseText ? `: ${responseText}` : "";
+
+        throw new Error(
+          `Seq ingestion failed with ${response.status} ${response.statusText}${suffix}`
+        );
+      }
     }
   };
 }

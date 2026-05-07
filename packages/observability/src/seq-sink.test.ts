@@ -57,3 +57,22 @@ test("seq sink posts CLEF to /ingest/clef with optional API key", async () => {
   );
   assert.match(String(capturedInit?.body), /"event":"llm.error"/);
 });
+
+test("seq sink rejects failed ingestion responses", async () => {
+  const sink = createSeqSink({
+    url: "http://127.0.0.1:5341",
+    fetchFn: async () =>
+      new Response("API key required", {
+        status: 401,
+        statusText: "Unauthorized"
+      })
+  });
+
+  await assert.rejects(
+    () =>
+      sink.write("info", {
+        event: "llm.request"
+      }),
+    /Seq ingestion failed with 401 Unauthorized/
+  );
+});

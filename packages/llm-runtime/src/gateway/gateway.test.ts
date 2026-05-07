@@ -6,6 +6,7 @@ import {
   createLLMGatewayConfigFromEnv,
   type ProviderRequest
 } from "./index.js";
+import { createMemoryLogger } from "@ai-western-town/observability";
 
 function createProviderRequest(): ProviderRequest {
   return {
@@ -47,6 +48,40 @@ test("gateway switches providers through explicit configuration", async () => {
     response.rawText,
     "{\"styleTags\":[\"calm\"],\"selectionReason\":\"steady\"}"
   );
+});
+
+test("gateway logs mock provider LLM request and response when enabled", async () => {
+  const memory = createMemoryLogger();
+  const gateway = createLLMGateway(
+    {
+      provider: "mock",
+      mock: {
+        rawText: "{\"styleTags\":[\"calm\"],\"selectionReason\":\"steady\"}"
+      }
+    },
+    {
+      logger: memory.logger,
+      llmLogging: {
+        enabled: true,
+        includeMessages: true,
+        includeRawResponse: true,
+        includeStack: true,
+        maxTextLength: 1000
+      }
+    }
+  );
+
+  const response = await gateway.invoke(createProviderRequest());
+  const events = memory.records.map((record) => record.fields);
+
+  assert.equal(response.finishReason, "stop");
+  assert.equal(events[0]?.event, "llm.request");
+  assert.equal(events[0]?.provider, "mock");
+  assert.equal(events[0]?.model, "mock-model");
+  assert.deepEqual(events[0]?.messages, createProviderRequest().messages);
+  assert.equal(events[1]?.event, "llm.response");
+  assert.equal(events[1]?.provider, "mock");
+  assert.equal(events[1]?.rawText, response.rawText);
 });
 
 test("gateway resolves local provider settings from environment-like config", () => {

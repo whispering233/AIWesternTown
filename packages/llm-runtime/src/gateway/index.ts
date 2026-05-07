@@ -60,7 +60,14 @@ export function createProviderFromConfig(
 ): LLMProvider {
   switch (config.provider) {
     case "mock":
-      return createMockProvider(config.mock);
+      return createMockProvider({
+        ...(config.mock ?? {}),
+        logger: options.logger?.child({
+          module: "llm-runtime",
+          provider: "mock"
+        }),
+        llmLogging: options.llmLogging
+      });
     case "local":
       return createLocalProvider({
         ...(config.local ?? {
