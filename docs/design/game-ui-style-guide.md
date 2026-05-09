@@ -10,8 +10,6 @@
 - `design/game-ui-system/design.png`
 - `apps/web`
 
-`design/game-ui-system/index.html` 仍可作为历史规范总览，但不再是主界面重构的优先参考。
-
 ## 2. Current Direction
 
 ### 2.1 Visual Tone
@@ -82,11 +80,11 @@
 - connection 状态
 - session 标识
 
-删除：
+不提供：
 
-- 隐藏左栏按钮
-- 隐藏右栏按钮
-- 任何调试入口按钮
+- 左栏显示/隐藏按钮
+- 右栏显示/隐藏按钮
+- 调试入口按钮
 
 顶栏的目标是让玩家知道应用与会话状态，不承担布局控制。
 
@@ -165,7 +163,7 @@
 
 ## 7. Right Map Rail
 
-右栏从“系统调试栏”改为“地图栏”，当前分成上下两块。
+右栏为地图栏，当前分成上下两块。
 
 ### 7.1 上方地图区
 
