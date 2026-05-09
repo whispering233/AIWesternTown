@@ -2,6 +2,8 @@ export { App } from "./App";
 export type {
   CommandSuggestion,
   DebugPanelCard,
+  MapPanelModel,
+  MapRouteItem,
   MovementItem,
   OpportunityItem,
   SceneFeedEntry,

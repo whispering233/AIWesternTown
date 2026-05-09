@@ -3,19 +3,73 @@ import type { SceneFeedEntry, ShellViewModel } from "./shell-view-model";
 export function createMockShellViewModel(): ShellViewModel {
   return {
     header: {
-      title: "Dead Mesa Main Shell",
-      summary: "浏览器壳层只消费 view model。左侧承载世界卷宗，中间保持当前回合，右侧承接系统信息与预留页面。",
-      sessionLabel: "Session / Draft 01",
+      title: "AI WESTERN TOWN",
+      summary: "浏览器壳层只消费 view model。左侧承载状态与卷宗，中间保持叙事交互，右侧承接地图和移动入口。",
+      sessionLabel: "session draft_01",
       connectionState: "mock",
-      connectionLabel: "Mock Session Attached",
+      connectionLabel: "connected",
       connectionHint: "SSE 与会话状态会继续停留在这条文档元信息线上。"
     },
     leftPanel: {
-      title: "世界侧栏",
-      description: "当前状态、事件流和卷宗日志统一收在这里，不打断主栏的当前回合交互。",
+      title: "Context",
+      description: "玩家状态、日志和人物卡统一收在左栏，不打断主栏叙事。",
       placeholderTitle: "当前状态",
       placeholderBody:
         "当前先保留状态页骨架。等世界日志、事件编年或调查索引接入后，它会沿用同一套编辑式视觉语言。",
+      statusItems: [
+        {
+          id: "status-location",
+          title: "当前位置",
+          body: "Dust Crossing / Main Street"
+        },
+        {
+          id: "status-items",
+          title: "携带物",
+          body: "旧车票、半截火柴、一枚没有登记的旅店钥匙。"
+        },
+        {
+          id: "status-risk",
+          title: "当前张力",
+          body: "中。酒馆门口的沉默正在吸引旁人注意。"
+        }
+      ],
+      logEntries: [
+        {
+          id: "log-arrival",
+          label: "WT 00",
+          title: "抵达街口",
+          body: "你从马车下来时，酒馆前的争执忽然停住。"
+        },
+        {
+          id: "log-clinic",
+          label: "WT 01",
+          title: "诊所异动",
+          body: "诊所窗帘在黄昏突然落下，里面有人影退开。"
+        }
+      ],
+      characters: [
+        {
+          id: "mara-holt",
+          name: "Mara Holt",
+          role: "bartender / watcher",
+          initial: "M",
+          detail: "她比镇上多数人更早注意到你，也更愿意把秘密藏在闲聊里。"
+        },
+        {
+          id: "jonah-reed",
+          name: "Jonah Reed",
+          role: "sheriff / evasive",
+          initial: "J",
+          detail: "警长办公室的锁盒少了一把钥匙，他还没有决定是否承认这件事。"
+        },
+        {
+          id: "eliza-wynn",
+          name: "Eliza Wynn",
+          role: "doctor / unsettled",
+          initial: "E",
+          detail: "她盯着楼梯口，像是在等人离开，又像是在怕某人回来。"
+        }
+      ],
       entries: [
         {
           id: "left-world-log",
@@ -121,14 +175,80 @@ export function createMockShellViewModel(): ShellViewModel {
     ],
     composer: {
       title: "输入你想做的事",
-      description: "当前命令既可以直接输入，也可以从上面的移动与机会动作进入。",
+      description: "当前命令可以直接输入，移动统一放在右侧地图栏。",
       placeholder: "例如：观察吧台边的人，或者跟上刚离开酒馆的医生",
       draft: "",
       footnote: "当前为浏览器壳层演示。"
     },
+    mapPanel: {
+      title: "地图",
+      focusLabel: "Dust Crossing / Main Street",
+      currentLocationId: "dust-crossing",
+      overviewDescription:
+        "当前行动区围绕主街、酒馆、马厩和诊所展开。暖色节点表示当前场景。",
+      currentDescription:
+        "尘土街口正好夹在酒馆、马厩和诊所之间。这里适合先观察，再决定靠近谁。",
+      currentFacts: [
+        {
+          label: "出口",
+          value: "酒馆、马厩、诊所外廊"
+        },
+        {
+          label: "风险",
+          value: "中。继续停留会让门口的人重新注意到你。"
+        },
+        {
+          label: "线索",
+          value: "窗帘落下、马厩响动、被打断的争执。"
+        }
+      ],
+      routes: [
+        {
+          id: "route-dust-crossing",
+          sceneId: "dust-crossing",
+          label: "尘土街口",
+          state: "current",
+          commandText: "前往尘土街口"
+        },
+        {
+          id: "route-saloon",
+          sceneId: "saloon",
+          label: "走进酒馆",
+          state: "known",
+          commandText: "前往酒馆"
+        },
+        {
+          id: "route-stable",
+          sceneId: "stable",
+          label: "靠近马厩",
+          state: "lead",
+          commandText: "走近马厩"
+        }
+      ],
+      nodes: [
+        {
+          id: "node-dust-crossing",
+          sceneId: "dust-crossing",
+          label: "街口",
+          isCurrent: true
+        },
+        {
+          id: "node-saloon",
+          sceneId: "saloon",
+          label: "酒馆",
+          isCurrent: false
+        },
+        {
+          id: "node-stable",
+          sceneId: "stable",
+          label: "马厩",
+          isCurrent: false
+        }
+      ]
+    },
     debugPanel: {
       title: "系统侧栏",
-      description: "调试信息仍然保留独立挂点，并与预留页面入口共享右侧 System Rail。",
+      description: "调试信息保留独立挂点，不再进入主界面右侧地图栏。",
       cards: [
         {
           id: "debug-transport",

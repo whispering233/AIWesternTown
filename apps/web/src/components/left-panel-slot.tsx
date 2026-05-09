@@ -1,7 +1,11 @@
 import { useState } from "react";
-import type { LeftPanelEntry } from "../view-model/shell-view-model";
+import type {
+  CharacterCardItem,
+  LeftPanelEntry,
+  LeftPanelStatusItem
+} from "../view-model/shell-view-model";
 
-type WorldPanelTab = "status" | "events" | "journal";
+type WorldPanelTab = "status" | "log" | "cast";
 
 type LeftPanelSlotProps = {
   panel: {
@@ -9,30 +13,12 @@ type LeftPanelSlotProps = {
     description: string;
     placeholderTitle: string;
     placeholderBody: string;
+    statusItems: LeftPanelStatusItem[];
+    logEntries: LeftPanelEntry[];
+    characters: CharacterCardItem[];
     entries: LeftPanelEntry[];
   };
 };
-
-const journalPlaceholders: LeftPanelEntry[] = [
-  {
-    id: "journal-characters",
-    label: "Reserved",
-    title: "角色索引",
-    body: "预留 Character Sheet 入口，后续承载身份、已知事实、关系和最近动态。"
-  },
-  {
-    id: "journal-locations",
-    label: "Reserved",
-    title: "地点与据点",
-    body: "预留 Scene Detail 与 Settlement Overview 入口，后续承载场景分区和区域风险。"
-  },
-  {
-    id: "journal-clues",
-    label: "Reserved",
-    title: "线索与假设",
-    body: "预留 Investigation Board 入口，后续承载线索组、未解问题和当前假设。"
-  }
-];
 
 export function LeftPanelSlot({ panel }: LeftPanelSlotProps) {
   const [activeTab, setActiveTab] = useState<WorldPanelTab>("status");
@@ -40,7 +26,6 @@ export function LeftPanelSlot({ panel }: LeftPanelSlotProps) {
   return (
     <section className="left-panel">
       <div className="panel-head">
-        <p className="eyebrow">World Rail</p>
         <h2 className="left-panel-title">{panel.title}</h2>
         <p className="left-panel-copy">{panel.description}</p>
       </div>
@@ -57,24 +42,24 @@ export function LeftPanelSlot({ panel }: LeftPanelSlotProps) {
           状态
         </button>
         <button
-          className={`rail-tab ${activeTab === "events" ? "is-active" : ""}`.trim()}
+          className={`rail-tab ${activeTab === "log" ? "is-active" : ""}`.trim()}
           type="button"
           role="tab"
-          aria-selected={activeTab === "events"}
-          aria-controls="world-panel-events"
-          onClick={() => setActiveTab("events")}
-        >
-          事件流
-        </button>
-        <button
-          className={`rail-tab ${activeTab === "journal" ? "is-active" : ""}`.trim()}
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "journal"}
-          aria-controls="world-panel-journal"
-          onClick={() => setActiveTab("journal")}
+          aria-selected={activeTab === "log"}
+          aria-controls="world-panel-log"
+          onClick={() => setActiveTab("log")}
         >
           日志
+        </button>
+        <button
+          className={`rail-tab ${activeTab === "cast" ? "is-active" : ""}`.trim()}
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "cast"}
+          aria-controls="world-panel-cast"
+          onClick={() => setActiveTab("cast")}
+        >
+          人物
         </button>
       </div>
 
@@ -84,43 +69,99 @@ export function LeftPanelSlot({ panel }: LeftPanelSlotProps) {
           role="tabpanel"
           hidden={activeTab !== "status"}
         >
-          <article className="left-panel-placeholder">
-            <p className="section-label">{panel.placeholderTitle}</p>
-            <p className="left-panel-copy">{panel.placeholderBody}</p>
-          </article>
+          <StatusList items={panel.statusItems} fallback={panel.placeholderBody} />
         </section>
 
         <section
-          id="world-panel-events"
+          id="world-panel-log"
           role="tabpanel"
-          hidden={activeTab !== "events"}
+          hidden={activeTab !== "log"}
         >
-          <PanelEntryList entries={panel.entries} />
+          <PanelEntryList entries={panel.logEntries} />
         </section>
 
         <section
-          id="world-panel-journal"
+          id="world-panel-cast"
           role="tabpanel"
-          hidden={activeTab !== "journal"}
+          hidden={activeTab !== "cast"}
         >
-          <PanelEntryList entries={journalPlaceholders} />
+          <CharacterCardList characters={panel.characters} />
         </section>
       </div>
     </section>
   );
 }
 
-function PanelEntryList({ entries }: { entries: LeftPanelEntry[] }) {
+function StatusList({
+  items,
+  fallback
+}: {
+  items: LeftPanelStatusItem[];
+  fallback: string;
+}) {
+  if (items.length === 0) {
+    return (
+      <article className="left-panel-placeholder">
+        <p className="left-panel-copy">{fallback}</p>
+      </article>
+    );
+  }
+
   return (
-    <div className="left-panel-entry-list">
+    <ul className="small-list">
+      {items.map((item) => (
+        <li key={item.id} className="small-item">
+          <p className="small-title">{item.title}</p>
+          <p className="small-copy">{item.body}</p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function PanelEntryList({ entries }: { entries: LeftPanelEntry[] }) {
+  if (entries.length === 0) {
+    return <p className="empty-feed">当前还没有可回看的日志。</p>;
+  }
+
+  return (
+    <ol className="timeline">
       {entries.map((entry) => (
-        <article key={entry.id} className="left-panel-entry">
-          <div className="entry-meta">
-            <span className="entry-label">{entry.label}</span>
-          </div>
-          <h3>{entry.title}</h3>
-          <p>{entry.body}</p>
-        </article>
+        <li key={entry.id} className="timeline-item">
+          <span className="timeline-tick">{entry.label}</span>
+          <p className="timeline-text">
+            <strong>{entry.title}</strong>
+            <span>{entry.body}</span>
+          </p>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function CharacterCardList({
+  characters
+}: {
+  characters: CharacterCardItem[];
+}) {
+  if (characters.length === 0) {
+    return <p className="empty-feed">当前还没有已知人物卡。</p>;
+  }
+
+  return (
+    <div className="character-list">
+      {characters.map((character, index) => (
+        <details key={character.id} className="character-card" open={index === 0}>
+          <summary>
+            <span className="avatar">{character.initial}</span>
+            <span className="character-name">
+              <strong>{character.name}</strong>
+              <span>{character.role}</span>
+            </span>
+            <span className="expand-mark" aria-hidden="true" />
+          </summary>
+          <p className="character-detail">{character.detail}</p>
+        </details>
       ))}
     </div>
   );

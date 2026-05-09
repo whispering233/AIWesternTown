@@ -2,7 +2,11 @@ import type { LocalHostStreamEvent } from "@ai-western-town/contracts";
 import type { LocalSessionRuntimeState } from "@ai-western-town/ui-sdk";
 
 import type {
+  CharacterCardItem,
   DebugPanelCard,
+  LeftPanelEntry,
+  LeftPanelStatusItem,
+  MapPanelModel,
   MovementItem,
   OpportunityItem,
   SceneFeedEntry,
@@ -123,8 +127,8 @@ const sceneDefinitions: Record<string, SceneDefinition> = {
 };
 
 const defaultLeftPanel = {
-  title: "世界侧栏",
-  description: "当前状态、事件流和卷宗日志统一收在这里，避免主交互栏被历史信息撑开。",
+  title: "Context",
+  description: "玩家状态、日志和人物卡统一收在这里，避免主交互栏被历史信息撑开。",
   placeholderTitle: "当前状态",
   placeholderBody:
     "这里保留当前地点、世界 tick、运行模式和风险提示。后续可接入更完整的状态卡。",
@@ -144,6 +148,30 @@ const defaultLeftPanel = {
   ]
 } as const;
 
+const defaultCharacters: CharacterCardItem[] = [
+  {
+    id: "mara-holt",
+    name: "Mara Holt",
+    role: "bartender / watcher",
+    initial: "M",
+    detail: "酒馆老板熟悉镇上的债务和流言，通常比警长更早知道谁在说谎。"
+  },
+  {
+    id: "jonah-reed",
+    name: "Jonah Reed",
+    role: "sheriff / evasive",
+    initial: "J",
+    detail: "警长习惯把关键事实留到最后。他的沉默可能是保护，也可能是拖延。"
+  },
+  {
+    id: "eliza-wynn",
+    name: "Eliza Wynn",
+    role: "doctor / unsettled",
+    initial: "E",
+    detail: "医生会在危险靠近时先看向出口。她现在对楼梯口过分敏感。"
+  }
+];
+
 export function buildLiveShellViewModel(
   runtimeState: LocalSessionRuntimeState
 ): ShellViewModel {
@@ -153,26 +181,23 @@ export function buildLiveShellViewModel(
 
   return {
     header: {
-      title: "Dead Mesa Main Shell",
+      title: "AI WESTERN TOWN",
       summary:
-        "浏览器通过 ui-sdk 连接本地宿主，主栏只服务当前回合，世界信息与系统信息分列两侧。",
+        "浏览器通过 ui-sdk 连接本地宿主，左栏收纳状态与日志，主栏服务当前叙事交互，右栏承接地图与移动。",
       sessionLabel: runtimeState.session
-        ? `Session / ${runtimeState.session.sessionId}`
-        : "Session / Connecting",
+        ? `session ${runtimeState.session.sessionId}`
+        : "session connecting",
       connectionState:
         runtimeState.connectionState === "live" ? "live" : "connecting",
       connectionLabel:
         runtimeState.connectionState === "live"
-          ? "Local Host Attached"
-          : "Connecting To Local Host",
+          ? "connected"
+          : "connecting",
       connectionHint: runtimeState.lastError
         ? "最近一次 SSE 或请求失败，页面保留最近可见状态。"
         : "页面状态通过 session.snapshot / world.event / tick.trace 同步。"
     },
-    leftPanel: {
-      ...defaultLeftPanel,
-      entries: [...defaultLeftPanel.entries]
-    },
+    leftPanel: buildLeftPanel(scene, runtimeState, traceSummary),
     scene: {
       sceneId: scene.sceneId,
       kicker: scene.kicker,
@@ -201,7 +226,7 @@ export function buildLiveShellViewModel(
     })),
     composer: {
       title: "输入你想做的事",
-      description: "你可以直接输入，也可以先用上面的移动与机会动作进入主循环。",
+      description: "你可以直接输入，也可以先选择当前选项；移动统一通过右侧地图提交。",
       placeholder: "例如：观察医生的反应，或者前往酒馆",
       draft: "",
       footnote: getMetadataCommandText(runtimeState.lastSubmittedCommand)
@@ -211,11 +236,103 @@ export function buildLiveShellViewModel(
         runtimeState.lastSubmittedCommand
       )
     },
+    mapPanel: buildMapPanel(scene),
     debugPanel: {
       title: "系统侧栏",
-      description: "右侧只承接 transport、trace 和后续页面入口，不混入主叙事流。",
+      description: "调试信息保留独立挂点，不再混入主界面地图栏。",
       cards: buildDebugCards(runtimeState)
     }
+  };
+}
+
+function buildLeftPanel(
+  scene: SceneDefinition,
+  runtimeState: LocalSessionRuntimeState,
+  traceSummary: ReturnType<typeof findLatestTrace>
+): ShellViewModel["leftPanel"] {
+  const statusItems: LeftPanelStatusItem[] = [
+    {
+      id: "status-location",
+      title: "当前位置",
+      body: scene.displayName
+    },
+    {
+      id: "status-tick",
+      title: "世界时间",
+      body: `World Tick ${runtimeState.session?.worldTick ?? 0}`
+    },
+    {
+      id: "status-mode",
+      title: "运行模式",
+      body: traceSummary?.runModeAfter ?? "free_explore"
+    }
+  ];
+  const logEntries: LeftPanelEntry[] = buildFeedEntries(runtimeState).map(
+    (entry) => ({
+      id: `log-${entry.id}`,
+      label: entry.timestamp,
+      title: entry.label,
+      body: entry.body
+    })
+  );
+
+  return {
+    ...defaultLeftPanel,
+    statusItems,
+    logEntries,
+    characters: defaultCharacters,
+    entries: [...defaultLeftPanel.entries]
+  };
+}
+
+function buildMapPanel(scene: SceneDefinition): MapPanelModel {
+  const routeScenes = [scene, ...scene.connections.map((sceneId) => sceneDefinitions[sceneId])]
+    .filter((entry): entry is SceneDefinition => entry !== undefined)
+    .filter(
+      (entry, index, entries) =>
+        entries.findIndex((candidate) => candidate.sceneId === entry.sceneId) ===
+        index
+    );
+
+  return {
+    title: "地图",
+    focusLabel: scene.displayName,
+    currentLocationId: scene.sceneId,
+    overviewDescription: `当前行动区围绕 ${routeScenes
+      .map((entry) => entry.displayName)
+      .join("、")} 展开。暖色节点表示当前场景。`,
+    currentDescription: scene.summary,
+    currentFacts: [
+      {
+        label: "出口",
+        value:
+          routeScenes
+            .filter((entry) => entry.sceneId !== scene.sceneId)
+            .map((entry) => entry.displayName)
+            .join("、") || "暂未发现新的出口"
+      },
+      {
+        label: "风险",
+        value: "中。移动会改变当前场景，但不会把世界真相写在前端。"
+      },
+      {
+        label: "线索",
+        value: scene.opportunities.map((item) => item.title).join("、")
+      }
+    ],
+    routes: routeScenes.map((entry) => ({
+      id: `route-${entry.sceneId}`,
+      sceneId: entry.sceneId,
+      label: entry.displayName,
+      state: entry.sceneId === scene.sceneId ? "current" : "known",
+      commandText: `前往 ${entry.displayName}`
+    })),
+    nodes: routeScenes.map((entry) => ({
+      id: `node-${entry.sceneId}`,
+      sceneId: entry.sceneId,
+      label: entry.displayName,
+      isCurrent: entry.sceneId === scene.sceneId
+    }))
   };
 }
 

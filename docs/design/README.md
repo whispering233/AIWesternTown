@@ -10,7 +10,8 @@
 
 1. `docs/design/game-ui-style-guide.md`
 2. `docs/design/game-ui-layout-blueprints.md`
-3. `design/game-ui-system/index.html`
+3. `design/game-ui-system/design.html`
+4. `design/game-ui-system/design.png`
 
 ## What Each Asset Does
 
@@ -24,6 +25,8 @@
 - panel 语法
 - 后续迭代的判断标准
 
+当前版本记录了主界面重构后的 `Context / Narrative / Map = 1:3:1` 三栏方向。
+
 ### `game-ui-layout-blueprints.md`
 
 负责定义：
@@ -33,14 +36,32 @@
 - 信息应该进入哪一栏
 - 内容过载时应该如何拆页
 
+当前版本将旧右栏 `System Rail` 调整为 `Map Rail`，并规定主栏顺序为“场景标签 / 叙事 / 对话 / 选项 / 自由输入”。
+
+### `design/game-ui-system/design.html`
+
+负责提供：
+
+- 当前主界面重构目标稿
+- 顶栏精简后的视觉参考
+- 左栏状态/日志/人物 tab 示例
+- 主栏叙事交互示例
+- 右栏地图与移动选项示例
+
+### `design/game-ui-system/design.png`
+
+负责提供：
+
+- 当前主界面目标视觉截图
+- 快速对照工程实现的静态参考
+
 ### `design/game-ui-system/index.html`
 
 负责提供：
 
-- 本地可视化示例
-- 样式 tokens 的展示
-- 主界面布局示例
-- 页面家族骨架示意
+- 历史设计规范总览
+- 样式 tokens 和页面家族骨架示意
+- 非当前主界面实现的辅助参考
 
 ## Boundary With Engineering
 

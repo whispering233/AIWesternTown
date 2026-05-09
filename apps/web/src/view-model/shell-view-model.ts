@@ -7,6 +7,20 @@ export type LeftPanelEntry = {
   body: string;
 };
 
+export type LeftPanelStatusItem = {
+  id: string;
+  title: string;
+  body: string;
+};
+
+export type CharacterCardItem = {
+  id: string;
+  name: string;
+  role: string;
+  initial: string;
+  detail: string;
+};
+
 export type SceneFeedEntry = {
   id: string;
   role: "scene" | "system" | "player";
@@ -67,6 +81,39 @@ export type DebugPanelModel = {
   cards: DebugPanelCard[];
 };
 
+export type MapFactItem = {
+  label: string;
+  value: string;
+};
+
+export type MapRouteState = "current" | "known" | "locked" | "lead";
+
+export type MapRouteItem = {
+  id: string;
+  sceneId: string;
+  label: string;
+  state: MapRouteState;
+  commandText: string;
+};
+
+export type MapNodeItem = {
+  id: string;
+  sceneId: string;
+  label: string;
+  isCurrent: boolean;
+};
+
+export type MapPanelModel = {
+  title: string;
+  focusLabel: string;
+  currentLocationId: string;
+  overviewDescription: string;
+  currentDescription: string;
+  currentFacts: MapFactItem[];
+  routes: MapRouteItem[];
+  nodes: MapNodeItem[];
+};
+
 export type ShellViewModel = {
   header: {
     title: string;
@@ -81,6 +128,9 @@ export type ShellViewModel = {
     description: string;
     placeholderTitle: string;
     placeholderBody: string;
+    statusItems: LeftPanelStatusItem[];
+    logEntries: LeftPanelEntry[];
+    characters: CharacterCardItem[];
     entries: LeftPanelEntry[];
   };
   scene: {
@@ -105,5 +155,6 @@ export type ShellViewModel = {
   feed: SceneFeedEntry[];
   suggestions: CommandSuggestion[];
   composer: CommandComposerModel;
+  mapPanel: MapPanelModel;
   debugPanel: DebugPanelModel;
 };

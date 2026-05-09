@@ -3,10 +3,7 @@ import test from "node:test";
 
 import React, { type ReactNode } from "react";
 
-import type {
-  MovementItem,
-  OpportunityItem
-} from "../view-model/shell-view-model";
+import type { OpportunityItem } from "../view-model/shell-view-model";
 import { PlayableLoopPanel } from "./playable-loop-panel";
 
 type ButtonElement = React.ReactElement<{
@@ -14,17 +11,8 @@ type ButtonElement = React.ReactElement<{
   children?: ReactNode;
 }>;
 
-test("renders movement and opportunity actions and calls submit handlers", async () => {
+test("renders generated choice actions and calls submit handlers", async () => {
   const clicked: string[] = [];
-  const movement: MovementItem[] = [
-    {
-      id: "move-saloon",
-      sceneId: "saloon",
-      label: "The Gilded Spur Saloon",
-      hint: "本地移动 lead",
-      commandText: "前往 The Gilded Spur Saloon"
-    }
-  ];
   const opportunities: OpportunityItem[] = [
     {
       id: "opp-observe-doctor",
@@ -36,23 +24,23 @@ test("renders movement and opportunity actions and calls submit handlers", async
   ];
 
   const element = PlayableLoopPanel({
-    movement,
     opportunities,
-    onMovementSelect: (item) => clicked.push(`move:${item.sceneId}`),
     onOpportunitySelect: (item) => clicked.push(`opp:${item.id}`)
   });
 
   const buttons = findButtons(element);
-  assert.equal(buttons.length, 2);
+  assert.equal(buttons.length, 1);
 
-  const [movementButton, opportunityButton] = buttons;
-  assert.ok(movementButton?.props.onClick);
+  const [opportunityButton] = buttons;
   assert.ok(opportunityButton?.props.onClick);
+  assert.deepEqual(flattenText(opportunityButton.props.children), [
+    "01",
+    "观察 Eliza Wynn"
+  ]);
 
-  movementButton.props.onClick();
   opportunityButton.props.onClick();
 
-  assert.deepEqual(clicked, ["move:saloon", "opp:opp-observe-doctor"]);
+  assert.deepEqual(clicked, ["opp:opp-observe-doctor"]);
 });
 
 function findButtons(node: ReactNode): ButtonElement[] {
@@ -81,4 +69,38 @@ function visit(node: ReactNode, buttons: ButtonElement[]): void {
   }
 
   visit((node.props as { children?: ReactNode }).children, buttons);
+}
+
+function flattenText(node: ReactNode): string[] {
+  const text: string[] = [];
+
+  collectText(node, text);
+
+  return text;
+}
+
+function collectText(node: ReactNode, text: string[]): void {
+  if (typeof node === "string") {
+    text.push(node);
+    return;
+  }
+
+  if (typeof node === "number") {
+    text.push(String(node));
+    return;
+  }
+
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      collectText(child, text);
+    }
+
+    return;
+  }
+
+  if (!React.isValidElement(node)) {
+    return;
+  }
+
+  collectText((node.props as { children?: ReactNode }).children, text);
 }

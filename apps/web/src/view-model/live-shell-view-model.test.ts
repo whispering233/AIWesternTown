@@ -58,6 +58,32 @@ test("buildLiveShellViewModel exposes movement leads for the current scene", () 
   assert.ok(viewModel.opportunities.items.some((item) => item.kind === "observe"));
 });
 
+test("buildLiveShellViewModel exposes map panel routes for the right rail", () => {
+  const viewModel = buildLiveShellViewModel(createRuntimeState());
+  const mapPanel = (viewModel as {
+    mapPanel?: {
+      title: string;
+      focusLabel: string;
+      currentLocationId: string;
+      routes: Array<{
+        sceneId: string;
+        label: string;
+        state: string;
+        commandText: string;
+      }>;
+    };
+  }).mapPanel;
+
+  assert.ok(mapPanel);
+  assert.equal(mapPanel.title, "地图");
+  assert.equal(mapPanel.focusLabel, "Rail House Hotel Lobby");
+  assert.equal(mapPanel.currentLocationId, "hotel_lobby");
+  assert.ok(mapPanel.routes.some((route) => route.sceneId === "saloon"));
+  assert.ok(
+    mapPanel.routes.every((route) => route.commandText.startsWith("前往 "))
+  );
+});
+
 test("buildLiveShellViewModel keeps accepted commands, world events, and traces in separate UI zones", () => {
   const viewModel = buildLiveShellViewModel(
     createRuntimeState({
