@@ -14,3 +14,32 @@ test("exports a validated starter town bundle", () => {
     )
   );
 });
+
+test("keeps player-facing starter town text in Chinese", () => {
+  for (const scene of starterTownContent.scenes) {
+    assertChineseText(scene.displayName, `scene ${scene.sceneId} displayName`);
+    assertChineseText(scene.summary, `scene ${scene.sceneId} summary`);
+  }
+
+  for (const npc of starterTownContent.npcs) {
+    assertChineseText(npc.displayName, `npc ${npc.npcId} displayName`);
+    assertChineseText(npc.role, `npc ${npc.npcId} role`);
+    assertChineseText(npc.publicPersona, `npc ${npc.npcId} publicPersona`);
+
+    for (const drive of npc.coreDrives) {
+      assertChineseText(drive, `npc ${npc.npcId} coreDrive`);
+    }
+
+    for (const goal of npc.shortTermGoals) {
+      assertChineseText(goal, `npc ${npc.npcId} shortTermGoal`);
+    }
+  }
+
+  for (const item of starterTownContent.items) {
+    assertChineseText(item.displayName, `item ${item.itemId} displayName`);
+  }
+});
+
+function assertChineseText(value: string, label: string): void {
+  assert.match(value, /\p{Script=Han}/u, `${label} should contain Chinese text`);
+}

@@ -1,35 +1,35 @@
 [
   {
     "npcId": "bartender",
-    "displayName": "Mara Holt",
-    "role": "bartender",
+    "displayName": "玛拉·霍尔特",
+    "role": "酒馆老板娘",
     "homeSceneId": "saloon",
     "startSceneId": "saloon",
-    "publicPersona": "A calm host who notices more than she admits.",
-    "coreDrives": ["keep the saloon neutral", "stay useful to every side"],
-    "shortTermGoals": ["defuse tonight's tension", "learn who keeps asking about the ledger"],
+    "publicPersona": "一位沉稳的酒馆主人，察觉到的事情远比她承认的更多。",
+    "coreDrives": ["维持酒馆的中立地位", "让自己对每一方都保持有用"],
+    "shortTermGoals": ["压住今晚的紧张气氛", "查清是谁一直在打听账本"],
     "tags": ["service_worker", "gossip_source", "social_anchor"]
   },
   {
     "npcId": "sheriff",
-    "displayName": "Jonah Reed",
-    "role": "sheriff",
+    "displayName": "乔纳·里德",
+    "role": "治安官",
     "homeSceneId": "sheriff_office",
     "startSceneId": "sheriff_office",
-    "publicPersona": "A steady lawman trying to project control over a restless town.",
-    "coreDrives": ["keep public order", "protect his authority"],
-    "shortTermGoals": ["recover the missing pressure point before rumors spread", "watch the station traffic closely"],
+    "publicPersona": "一名沉着的执法者，努力让躁动的小镇相信局面仍在掌控中。",
+    "coreDrives": ["维持公共秩序", "守住自己的权威"],
+    "shortTermGoals": ["在流言扩散前找回那个缺失的把柄", "密切盯住车站往来人流"],
     "tags": ["law_enforcement", "authority", "ledger_tied"]
   },
   {
     "npcId": "doctor",
-    "displayName": "Eliza Wynn",
-    "role": "doctor",
+    "displayName": "伊莱莎·温",
+    "role": "医生",
     "homeSceneId": "hotel_lobby",
     "startSceneId": "hotel_lobby",
-    "publicPersona": "A composed doctor whose patience hides private pressure.",
-    "coreDrives": ["protect her reputation", "stay ahead of sudden crises"],
-    "shortTermGoals": ["keep her tools close", "avoid getting pulled into public accusations"],
+    "publicPersona": "一位克制的医生，耐心背后藏着私人压力。",
+    "coreDrives": ["保护自己的名声", "抢在突发危机前做好准备"],
+    "shortTermGoals": ["把医用工具留在身边", "避免被卷入公开指控"],
     "tags": ["healer", "respected", "under_pressure"]
   }
 ]

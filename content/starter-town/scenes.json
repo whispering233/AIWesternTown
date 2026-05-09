@@ -1,8 +1,8 @@
 [
   {
     "sceneId": "saloon",
-    "displayName": "The Gilded Spur Saloon",
-    "summary": "A busy saloon where gossip, deals, and grudges mix under lamp smoke.",
+    "displayName": "镀金马刺酒馆",
+    "summary": "一间热闹的酒馆，流言、交易和旧怨在油灯烟雾下混杂。",
     "category": "service",
     "tags": ["saloon", "public_gathering", "rumor_hub"],
     "connections": [
@@ -13,8 +13,8 @@
   },
   {
     "sceneId": "sheriff_office",
-    "displayName": "Sheriff's Office",
-    "summary": "A cramped civic office with a desk, a lockbox, and too many unanswered questions.",
+    "displayName": "治安官办公室",
+    "summary": "一间狭窄的镇政办公室，桌案、锁箱和太多无人回答的问题挤在一起。",
     "category": "civic",
     "tags": ["law_enforcement", "records", "town_center"],
     "connections": [
@@ -24,8 +24,8 @@
   },
   {
     "sceneId": "hotel_lobby",
-    "displayName": "Rail House Hotel Lobby",
-    "summary": "A worn lobby where travelers rest and local business changes hands quietly.",
+    "displayName": "铁路之家旅店大厅",
+    "summary": "一间磨旧的旅店大堂，旅人歇脚，本地生意也在低声换手。",
     "category": "residence",
     "tags": ["hotel", "lodging", "waiting_space"],
     "connections": [
@@ -36,8 +36,8 @@
   },
   {
     "sceneId": "train_station",
-    "displayName": "Dry Creek Station",
-    "summary": "A small platform and ticket room where arrivals can shift the whole town's mood.",
+    "displayName": "干溪车站",
+    "summary": "一座小站台和售票室，任何抵达者都可能改变整座小镇的情绪。",
     "category": "service",
     "tags": ["railway", "arrival_point", "freight"],
     "connections": [

@@ -1,7 +1,7 @@
 [
   {
     "itemId": "town_ledger",
-    "displayName": "Town Ledger",
+    "displayName": "镇务账本",
     "category": "document",
     "tags": ["ledger", "records", "critical"],
     "startPlacement": {
@@ -11,7 +11,7 @@
   },
   {
     "itemId": "office_key",
-    "displayName": "Office Key",
+    "displayName": "办公室钥匙",
     "category": "access",
     "tags": ["key", "metal", "utility"],
     "startPlacement": {
@@ -21,7 +21,7 @@
   },
   {
     "itemId": "medical_bag",
-    "displayName": "Medical Bag",
+    "displayName": "医疗包",
     "category": "tool",
     "tags": ["medical", "doctor", "portable"],
     "startPlacement": {
