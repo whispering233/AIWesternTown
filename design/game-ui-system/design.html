@@ -1,0 +1,862 @@
+
+<!doctype html>
+<html lang="zh-CN">
+<head><script data-od-sandbox-shim>(function(){
+  function makeStore(){
+    var data = {};
+    var api = {
+      getItem: function(k){ return Object.prototype.hasOwnProperty.call(data, k) ? data[k] : null; },
+      setItem: function(k, v){ data[k] = String(v); },
+      removeItem: function(k){ delete data[k]; },
+      clear: function(){ data = {}; },
+      key: function(i){ return Object.keys(data)[i] || null; }
+    };
+    Object.defineProperty(api, 'length', { get: function(){ return Object.keys(data).length; } });
+    return api;
+  }
+  function tryShim(name){
+    var works = false;
+    try { works = !!window[name] && typeof window[name].getItem === 'function'; void window[name].length; }
+    catch (_) { works = false; }
+    if (works) return;
+    try { Object.defineProperty(window, name, { configurable: true, value: makeStore() }); }
+    catch (_) { try { window[name] = makeStore(); } catch (__) {} }
+  }
+  tryShim('localStorage');
+  tryShim('sessionStorage');
+})();</script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI WEST TOWM - Text Adventure Console</title>
+  <style>
+    :root {
+      --bg: oklch(97% 0.012 80);
+      --surface: oklch(99% 0.005 80);
+      --fg: oklch(20% 0.02 60);
+      --muted: oklch(48% 0.015 60);
+      --border: oklch(89% 0.012 80);
+      --accent: oklch(58% 0.16 35);
+      --panel: color-mix(in oklch, var(--surface) 86%, var(--bg));
+      --quiet: color-mix(in oklch, var(--muted) 68%, var(--bg));
+      --accent-soft: color-mix(in oklch, var(--accent) 12%, var(--surface));
+      --accent-line: color-mix(in oklch, var(--accent) 42%, var(--border));
+      --success: oklch(49% 0.11 145);
+      --font-display: 'Iowan Old Style', 'Charter', Georgia, serif;
+      --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --font-mono: 'SFMono-Regular', 'Cascadia Code', 'JetBrains Mono', ui-monospace, Menlo, monospace;
+      --topbar: 64px;
+      --gutter: 22px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+
+    body {
+      margin: 0;
+      background:
+        linear-gradient(90deg, color-mix(in oklch, var(--border) 42%, transparent) 1px, transparent 1px) 0 0 / 80px 80px,
+        linear-gradient(180deg, color-mix(in oklch, var(--surface) 78%, transparent), transparent 34%),
+        var(--bg);
+      color: var(--fg);
+      font-family: var(--font-body);
+      line-height: 1.5;
+      overflow: hidden;
+    }
+
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+
+    .shell {
+      height: 100dvh;
+      display: grid;
+      grid-template-rows: var(--topbar) minmax(0, 1fr);
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) auto;
+      align-items: center;
+      gap: 24px;
+      padding: 0 26px;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in oklch, var(--surface) 92%, transparent);
+      backdrop-filter: blur(18px);
+    }
+
+    .brand-mark {
+      font-family: var(--font-display);
+      font-size: 27px;
+      letter-spacing: 0;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .top-meta {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      text-transform: uppercase;
+    }
+
+    .signal { display: inline-flex; align-items: center; gap: 7px; }
+    .signal::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--success);
+    }
+
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 3fr) minmax(0, 1fr);
+      gap: var(--gutter);
+      padding: 22px 26px 26px;
+    }
+
+    .panel {
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: color-mix(in oklch, var(--panel) 92%, transparent);
+    }
+
+    .panel-head {
+      min-height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-title, .route-title {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .panel-note {
+      color: var(--quiet);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tab-row, .map-tabs {
+      display: grid;
+      gap: 6px;
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tab-row { grid-template-columns: repeat(3, 1fr); }
+    .map-tabs { grid-template-columns: repeat(2, 1fr); }
+
+    .tab-button, .map-tab-button, .choice, .route-button, .send-button {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--fg);
+      transition: background 180ms ease, border-color 180ms ease, color 180ms ease, transform 180ms ease;
+    }
+
+    .tab-button, .map-tab-button {
+      min-height: 36px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .tab-button[aria-selected="true"], .map-tab-button[aria-selected="true"] {
+      background: var(--surface);
+      border-color: color-mix(in oklch, var(--border) 72%, var(--fg));
+      color: var(--fg);
+    }
+
+    .tab-button:hover, .map-tab-button:hover, .choice:hover, .route-button:hover, .send-button:hover {
+      border-color: var(--accent-line);
+      background: color-mix(in oklch, var(--accent-soft) 72%, var(--surface));
+    }
+
+    .tab-pane, .map-pane {
+      display: none;
+      min-height: 0;
+      overflow: auto;
+      padding: 18px;
+    }
+
+    .tab-pane.active, .map-pane.active { display: block; }
+
+    .small-list, .timeline, .character-list, .scene-facts, .route-list {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .small-item, .timeline-item, .character-card, .scene-facts li {
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .small-item:last-child, .timeline-item:last-child, .character-card:last-child, .scene-facts li:last-child {
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    .small-title {
+      margin: 0 0 4px;
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .small-copy, .timeline-text, .character-detail, .scene-description p, .map-caption {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 62px 1fr;
+      gap: 12px;
+    }
+
+    .timeline-tick, .character-name span, .route-key, .route-state, .scene-facts b {
+      color: var(--quiet);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      text-transform: uppercase;
+    }
+
+    .character-card summary {
+      min-height: 42px;
+      display: grid;
+      grid-template-columns: 38px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .character-card summary::-webkit-details-marker { display: none; }
+
+    .avatar, .message-avatar {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .avatar {
+      color: var(--fg);
+      font-family: var(--font-display);
+      font-size: 15px;
+    }
+
+    .character-name { display: grid; gap: 2px; }
+    .character-name strong { font-size: 14px; font-weight: 650; }
+    .character-detail { margin-top: 8px; padding-left: 50px; }
+    .expand-mark::before { content: "+"; color: var(--quiet); font-family: var(--font-mono); }
+    .character-card[open] .expand-mark::before { content: "-"; color: var(--fg); }
+
+    .main-panel { background: color-mix(in oklch, var(--surface) 92%, var(--bg)); }
+
+    .scene {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      overflow: hidden;
+      padding: 26px clamp(24px, 3vw, 48px) 18px;
+    }
+
+    .scene-inner {
+      width: 100%;
+      min-height: 0;
+      height: 100%;
+      margin: 0 auto;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .scene-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .meta-chip {
+      padding: 6px 9px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .story-block {
+      color: var(--fg);
+      font-family: var(--font-display);
+      font-size: 20px;
+      line-height: 1.38;
+      letter-spacing: 0;
+    }
+
+    .story-block p { margin: 0; }
+    .story-block p + p { margin-top: 10px; }
+
+    .dialogue-window {
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+      border: 1px solid var(--border);
+      background:
+        linear-gradient(180deg, color-mix(in oklch, var(--surface) 78%, transparent), transparent 42%),
+        var(--bg);
+      padding: 16px;
+      scrollbar-color: var(--quiet) transparent;
+    }
+
+    .dialogue-thread { display: grid; gap: 14px; }
+
+    .message {
+      max-width: 82%;
+      display: grid;
+      grid-template-columns: 32px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+    }
+
+    .message.player {
+      grid-template-columns: minmax(0, 1fr) 32px;
+      justify-self: end;
+    }
+
+    .message-bubble {
+      padding: 11px 13px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--fg);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .message.player .message-bubble {
+      border-color: var(--accent-line);
+      background: var(--accent-soft);
+    }
+
+    .message-name {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    .decision-row, .input-dock {
+      flex: 0 0 auto;
+      border-top: 1px solid var(--border);
+      background: color-mix(in oklch, var(--surface) 95%, var(--bg));
+      padding: 12px clamp(24px, 3vw, 48px);
+    }
+
+    .choices, .command-form {
+      width: 100%;
+      margin: 0 auto;
+      display: grid;
+      gap: 10px;
+    }
+
+    .command-form {
+      grid-template-columns: 1fr auto;
+      align-items: center;
+    }
+
+    .choice {
+      min-height: 46px;
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      align-items: center;
+      gap: 14px;
+      padding: 0 14px;
+      text-align: left;
+      background: var(--surface);
+    }
+
+    .choice-key {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .choice-label { font-size: 14px; font-weight: 600; }
+
+    .command-field {
+      min-height: 44px;
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--bg);
+      color: var(--fg);
+      outline: none;
+      padding: 0 18px;
+    }
+
+    .command-field:focus {
+      border-color: var(--accent-line);
+      background: var(--surface);
+    }
+
+    .send-button {
+      min-height: 44px;
+      padding: 0 18px;
+      border-radius: 999px;
+      border-color: var(--fg);
+      background: var(--fg);
+      color: var(--surface);
+      font-weight: 650;
+    }
+
+    .map-body {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
+    }
+
+    .map-top {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .map-pane { flex: 1; }
+
+    .world-map {
+      min-height: 100%;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 18px;
+    }
+
+    .map-grid {
+      position: relative;
+      min-height: 230px;
+      border: 1px solid var(--border);
+      background:
+        linear-gradient(90deg, color-mix(in oklch, var(--border) 58%, transparent) 1px, transparent 1px) 0 0 / 42px 42px,
+        linear-gradient(180deg, color-mix(in oklch, var(--border) 48%, transparent) 1px, transparent 1px) 0 0 / 42px 42px,
+        color-mix(in oklch, var(--surface) 88%, var(--bg));
+    }
+
+    .route-line {
+      position: absolute;
+      height: 1px;
+      background: color-mix(in oklch, var(--border) 60%, var(--fg));
+      transform-origin: left center;
+      opacity: 0.55;
+    }
+
+    .line-a { width: 126px; left: 82px; top: 116px; transform: rotate(-18deg); }
+    .line-b { width: 118px; left: 170px; top: 126px; transform: rotate(25deg); }
+    .line-c { width: 96px; left: 92px; top: 152px; transform: rotate(30deg); }
+
+    .map-node {
+      position: absolute;
+      min-width: 82px;
+      padding: 7px 9px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.25;
+    }
+
+    .map-node::before {
+      content: "";
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      margin-inline-end: 7px;
+      border-radius: 999px;
+      background: var(--quiet);
+      vertical-align: 1px;
+    }
+
+    .map-node.active {
+      border-color: var(--accent-line);
+      background: var(--accent-soft);
+      color: var(--fg);
+    }
+
+    .map-node.active::before { background: var(--accent); }
+    .node-gate { left: 96px; top: 94px; }
+    .node-dock { left: 24px; top: 146px; }
+    .node-tower { right: 26px; top: 72px; }
+    .node-warehouse { right: 54px; bottom: 34px; }
+
+    .scene-description { display: grid; gap: 14px; }
+    .scene-description h3 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: 30px;
+      font-weight: 500;
+      letter-spacing: 0;
+      line-height: 1.05;
+    }
+
+    .scene-facts { gap: 10px; margin-top: 4px; }
+    .scene-facts li { display: grid; grid-template-columns: 76px 1fr; gap: 12px; }
+    .scene-facts span { color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+    .route-switcher {
+      border-top: 1px solid var(--border);
+      padding: 14px;
+      background: color-mix(in oklch, var(--surface) 95%, var(--bg));
+    }
+
+    .route-title { margin-bottom: 10px; }
+
+    .route-button {
+      min-height: 42px;
+      display: grid;
+      grid-template-columns: 32px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      padding: 0 12px;
+      text-align: left;
+      background: var(--surface);
+    }
+
+    .route-button[aria-pressed="true"] {
+      border-color: var(--accent-line);
+      background: var(--accent-soft);
+    }
+
+    .route-label { color: var(--fg); font-size: 13px; font-weight: 600; }
+
+    @media (max-width: 1180px) {
+      :root { --gutter: 16px; }
+      .workspace { grid-template-columns: minmax(0, 1fr) minmax(0, 3fr) minmax(0, 1fr); }
+      .top-meta { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell" data-od-id="text-adventure-console">
+    <header class="topbar">
+      <div class="brand-mark">AI WEST TOWM</div>
+      <div class="top-meta" aria-label="运行状态">
+        <span class="signal">connected</span>
+        <span>session qst_04f2</span>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="panel" data-od-id="left-context-panel">
+        <div class="panel-head">
+          <h2 class="panel-title">Context</h2>
+        </div>
+        <div class="tab-row" role="tablist" aria-label="上下文标签">
+          <button class="tab-button" type="button" role="tab" aria-selected="true" data-tab="status">状态</button>
+          <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="log">日志</button>
+          <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="cast">人物</button>
+        </div>
+        <section class="tab-pane active" data-pane="status" role="tabpanel">
+          <ul class="small-list">
+            <li class="small-item">
+              <p class="small-title">携带物</p>
+              <p class="small-copy">铜钥匙、湿掉的地图、封蜡信件、一枚未登记的筹码。</p>
+            </li>
+          </ul>
+        </section>
+        <section class="tab-pane" data-pane="log" role="tabpanel">
+          <ol class="timeline">
+            <li class="timeline-item"><span class="timeline-tick">WT 10</span><p class="timeline-text">你从旧码头抵达河门，选择避开正门火把。</p></li>
+            <li class="timeline-item"><span class="timeline-tick">WT 12</span><p class="timeline-text">阿芙拉提示守门人今晚换班，窗口只有三分钟。</p></li>
+            <li class="timeline-item"><span class="timeline-tick">WT 13</span><p class="timeline-text">你听见门内传来金属拖拽声，可能是升降栅。</p></li>
+          </ol>
+        </section>
+        <section class="tab-pane" data-pane="cast" role="tabpanel">
+          <div class="character-list">
+            <details class="character-card" open>
+              <summary><span class="avatar">阿</span><span class="character-name"><strong>阿芙拉</strong><span>guide / ally</span></span><span class="expand-mark"></span></summary>
+              <p class="character-detail">熟悉河岸黑市和码头暗号。她愿意协助潜入，但会避开档案塔正门与书记官。</p>
+            </details>
+            <details class="character-card">
+              <summary><span class="avatar">谢</span><span class="character-name"><strong>守门人谢恩</strong><span>gatekeeper / cautious</span></span><span class="expand-mark"></span></summary>
+              <p class="character-detail">对玩家保持警惕；可用通行令、贿赂或事实说服。他听见“商会”时会短暂停顿。</p>
+            </details>
+            <details class="character-card">
+              <summary><span class="avatar">书</span><span class="character-name"><strong>塔书记官</strong><span>unknown / offstage</span></span><span class="expand-mark"></span></summary>
+              <p class="character-detail">尚未露面。最近三天删除了多条出入记录，可能与缺失的第七页账本有关。</p>
+            </details>
+          </div>
+        </section>
+      </aside>
+
+      <section class="panel main-panel" data-od-id="main-interaction-panel">
+        <div class="scene">
+          <div class="scene-inner">
+            <div class="scene-meta">
+              <span class="meta-chip" id="sceneLocationChip">地点: 北岸河门</span>
+              <span class="meta-chip">时间: 21:14</span>
+              <span class="meta-chip">天气: 大雨</span>
+              <span class="meta-chip">world tick: 12</span>
+              <span class="meta-chip">风险: 中</span>
+            </div>
+            <div class="story-block" data-od-id="scene-story">
+              <p>门缝后的灯光很低。守门人的手停在铜铃旁，像是在等你先犯错。你可以递出信件，也可以试着用雨声遮住脚步，从门侧的验货孔钻入。</p>
+              <p>雨水沿门缝往里渗。铜铃没有响，守门人的沉默反而把下一句话变得更危险。</p>
+            </div>
+            <section class="dialogue-window" data-od-id="dialogue-window" aria-label="角色对话">
+              <div class="dialogue-thread">
+                <div class="message npc"><span class="message-avatar">谢</span><div class="message-bubble"><span class="message-name">守门人谢恩</span>北岸商会不会在这个时辰派人。把信放在石阶上，后退两步。</div></div>
+                <div class="message player"><div class="message-bubble"><span class="message-name">玩家</span>如果你要的是正式手续，我可以等铃响；如果你要的是第七页，我们最好别让雨停下来。</div><span class="message-avatar">我</span></div>
+                <div class="message npc"><span class="message-avatar">阿</span><div class="message-bubble"><span class="message-name">阿芙拉</span>他在看铜铃，不是在看信。门房里应该还有别的机关。</div></div>
+                <div class="message npc"><span class="message-avatar">谢</span><div class="message-bubble"><span class="message-name">守门人谢恩</span>第七页这个词，不该从一个送信人嘴里说出来。</div></div>
+                <div class="message player"><div class="message-bubble"><span class="message-name">玩家</span>那就当我不是送信人。你可以现在关门，也可以告诉我谁拿走了账本。</div><span class="message-avatar">我</span></div>
+                <div class="message npc"><span class="message-avatar">旁</span><div class="message-bubble"><span class="message-name">旁白</span>判定 d20=14，成功。谢恩的视线离开铜铃，落到封蜡上的裂纹。</div></div>
+                <div class="message npc"><span class="message-avatar">阿</span><div class="message-bubble"><span class="message-name">阿芙拉</span>船靠岸之前？那页不在塔里，在码头仓库。</div></div>
+                <div class="message npc"><span class="message-avatar">谢</span><div class="message-bubble"><span class="message-name">守门人谢恩</span>够了。进来一个人，另一个留在门外。别碰铃，也别碰桌子。</div></div>
+              </div>
+            </section>
+          </div>
+        </div>
+        <div class="decision-row">
+          <div class="choices" data-od-id="choice-list">
+            <button class="choice" type="button" data-choice="递出封蜡信件，声称你替北岸商会送来急件。"><span class="choice-key">01</span><span class="choice-label">递出封蜡信件，借商会名义要求通行</span></button>
+            <button class="choice" type="button" data-choice="让阿芙拉吸引守门人注意，你从验货孔进入门房。"><span class="choice-key">02</span><span class="choice-label">让阿芙拉分散注意，从验货孔潜入</span></button>
+            <button class="choice" type="button" data-choice="直接问他第七页账本去了哪里，观察他的反应。"><span class="choice-key">03</span><span class="choice-label">提到第七页账本，试探守门人的反应</span></button>
+          </div>
+        </div>
+        <div class="input-dock">
+          <form class="command-form" id="commandForm">
+            <input class="command-field" id="commandInput" type="text" autocomplete="off" placeholder="自由输入行动，例如：把铜钥匙藏进袖口，然后递出信件" />
+            <button class="send-button" type="submit">发送</button>
+          </form>
+        </div>
+      </section>
+
+      <aside class="panel" data-od-id="right-map-panel">
+        <div class="panel-head">
+          <h2 class="panel-title">Map</h2>
+          <span class="panel-note" id="mapFocus">北岸河门</span>
+        </div>
+        <div class="map-body">
+          <div class="map-top">
+            <div class="map-tabs" role="tablist" aria-label="地图标签">
+              <button class="map-tab-button" type="button" role="tab" aria-selected="true" data-map-tab="overview">总地图</button>
+              <button class="map-tab-button" type="button" role="tab" aria-selected="false" data-map-tab="current">当前位置</button>
+            </div>
+            <section class="map-pane active" data-map-pane="overview" role="tabpanel">
+              <div class="world-map">
+                <p class="map-caption">北岸行动区。当前路径围绕河门、旧码头、档案塔和码头仓库展开。</p>
+                <div class="map-grid" aria-label="总地图节点">
+                  <span class="route-line line-a"></span>
+                  <span class="route-line line-b"></span>
+                  <span class="route-line line-c"></span>
+                  <button class="map-node node-gate active" type="button" data-location="river-gate">北岸河门</button>
+                  <button class="map-node node-dock" type="button" data-location="old-dock">旧码头</button>
+                  <button class="map-node node-tower" type="button" data-location="archive-tower">档案塔</button>
+                  <button class="map-node node-warehouse" type="button" data-location="dock-warehouse">码头仓库</button>
+                </div>
+                <p class="map-caption">实线表示已知路线；暖色节点表示当前场景。</p>
+              </div>
+            </section>
+            <section class="map-pane" data-map-pane="current" role="tabpanel">
+              <div class="scene-description">
+                <h3 id="mapSceneTitle">北岸河门</h3>
+                <p id="mapSceneDescription">河门只开了一掌宽，门房灯光压得很低。铜铃、验货孔和湿钥匙都在守门人的视线边缘。</p>
+                <ul class="scene-facts" id="mapSceneFacts">
+                  <li><b>出口</b><span>旧码头、档案塔外阶、码头仓库后门</span></li>
+                  <li><b>风险</b><span>中。碰响铜铃会落下栅门。</span></li>
+                  <li><b>线索</b><span>黑色绳结钥匙、半张轮班表。</span></li>
+                </ul>
+              </div>
+            </section>
+          </div>
+          <div class="route-switcher" data-od-id="map-route-switcher">
+            <p class="route-title">去往地点</p>
+            <div class="route-list">
+              <button class="route-button" type="button" aria-pressed="true" data-location="river-gate"><span class="route-key">01</span><span class="route-label">北岸河门</span><span class="route-state">current</span></button>
+              <button class="route-button" type="button" aria-pressed="false" data-location="old-dock"><span class="route-key">02</span><span class="route-label">旧码头</span><span class="route-state">known</span></button>
+              <button class="route-button" type="button" aria-pressed="false" data-location="archive-tower"><span class="route-key">03</span><span class="route-label">档案塔外阶</span><span class="route-state">locked</span></button>
+              <button class="route-button" type="button" aria-pressed="false" data-location="dock-warehouse"><span class="route-key">04</span><span class="route-label">码头仓库</span><span class="route-state">lead</span></button>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    const dialogueWindow = document.querySelector('.dialogue-window');
+    const dialogueThread = document.querySelector('.dialogue-thread');
+    const sceneLocationChip = document.getElementById('sceneLocationChip');
+    const mapFocus = document.getElementById('mapFocus');
+    const mapSceneTitle = document.getElementById('mapSceneTitle');
+    const mapSceneDescription = document.getElementById('mapSceneDescription');
+    const mapSceneFacts = document.getElementById('mapSceneFacts');
+
+    const mapLocations = {
+      'river-gate': {
+        label: '北岸河门',
+        state: 'known',
+        description: '河门只开了一掌宽，门房灯光压得很低。铜铃、验货孔和湿钥匙都在守门人的视线边缘。',
+        facts: [['出口', '旧码头、档案塔外阶、码头仓库后门'], ['风险', '中。碰响铜铃会落下栅门。'], ['线索', '黑色绳结钥匙、半张轮班表。']]
+      },
+      'old-dock': {
+        label: '旧码头',
+        state: 'known',
+        description: '旧码头的木桩被雨水泡得发黑，货船绳索还在轻轻晃动。这里适合回收线索，也适合避开正门视线。',
+        facts: [['出口', '北岸河门、码头仓库'], ['风险', '低。巡逻会在 WT 18 回到栈桥。'], ['线索', '湿脚印、空货箱、被撕开的船单。']]
+      },
+      'archive-tower': {
+        label: '档案塔外阶',
+        state: 'locked',
+        description: '档案塔的外阶被两盏冷灯照亮。正门尚未开放，但守门人手里的轮班表能改变进入窗口。',
+        facts: [['出口', '北岸河门、塔下水路'], ['风险', '高。书记官可能已经删除出入记录。'], ['线索', '塔灯、湿披风、门禁钟声。']]
+      },
+      'dock-warehouse': {
+        label: '码头仓库',
+        state: 'lead',
+        description: '码头仓库在河门侧后方，门缝里有干燥的灯光。阿芙拉认为第七页账本可能被转移到这里。',
+        facts: [['出口', '旧码头、北岸河门后巷'], ['风险', '中。仓库锁可能对应黑色绳结钥匙。'], ['线索', '第七页账本、北岸商会货标。']]
+      }
+    };
+
+    function addDialogue({ side, avatar, name, text }) {
+      const message = document.createElement('div');
+      const avatarNode = document.createElement('span');
+      const bubble = document.createElement('div');
+      const speaker = document.createElement('span');
+      message.className = `message ${side}`;
+      avatarNode.className = 'message-avatar';
+      avatarNode.textContent = avatar;
+      bubble.className = 'message-bubble';
+      speaker.className = 'message-name';
+      speaker.textContent = name;
+      bubble.append(speaker, document.createTextNode(text));
+      message.append(...(side === 'player' ? [bubble, avatarNode] : [avatarNode, bubble]));
+      dialogueThread.append(message);
+      dialogueWindow.scrollTop = dialogueWindow.scrollHeight;
+    }
+
+    function setMapTab(tab) {
+      document.querySelectorAll('.map-tab-button').forEach((button) => {
+        button.setAttribute('aria-selected', String(button.dataset.mapTab === tab));
+      });
+      document.querySelectorAll('.map-pane').forEach((pane) => {
+        pane.classList.toggle('active', pane.dataset.mapPane === tab);
+      });
+    }
+
+    function updateSceneFacts(facts) {
+      mapSceneFacts.replaceChildren(...facts.map(([label, value]) => {
+        const item = document.createElement('li');
+        const key = document.createElement('b');
+        const content = document.createElement('span');
+        key.textContent = label;
+        content.textContent = value;
+        item.append(key, content);
+        return item;
+      }));
+    }
+
+    function setLocation(locationId, announce = false) {
+      const location = mapLocations[locationId];
+      if (!location) return;
+      sceneLocationChip.textContent = `地点: ${location.label}`;
+      mapFocus.textContent = location.label;
+      mapSceneTitle.textContent = location.label;
+      mapSceneDescription.textContent = location.description;
+      updateSceneFacts(location.facts);
+      document.querySelectorAll('.map-node').forEach((node) => {
+        node.classList.toggle('active', node.dataset.location === locationId);
+      });
+      document.querySelectorAll('.route-button').forEach((button) => {
+        const active = button.dataset.location === locationId;
+        button.setAttribute('aria-pressed', String(active));
+        button.querySelector('.route-state').textContent = active ? 'current' : mapLocations[button.dataset.location].state;
+      });
+      if (announce) addDialogue({ side: 'npc', avatar: '图', name: '地图', text: `目标地点已切换为${location.label}。${location.description}` });
+    }
+
+    function resolveRoll(action) {
+      const value = Math.floor(Math.random() * 20) + 1;
+      const succeeded = value + 2 >= 12;
+      addDialogue({ side: 'player', avatar: '我', name: '玩家', text: action });
+      addDialogue({
+        side: 'npc',
+        avatar: '旁',
+        name: '旁白',
+        text: succeeded ? `判定 d20=${value}，成功。门缝又打开了一点，谢恩的戒备开始松动。` : `判定 d20=${value}，代价成功。谢恩让开半步，但他的手仍停在铜铃上。`
+      });
+    }
+
+    document.querySelectorAll('.tab-button').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.tab-button').forEach((item) => item.setAttribute('aria-selected', String(item === button)));
+        document.querySelectorAll('.tab-pane').forEach((pane) => pane.classList.toggle('active', pane.dataset.pane === button.dataset.tab));
+      });
+    });
+
+    document.querySelectorAll('.map-tab-button').forEach((button) => {
+      button.addEventListener('click', () => setMapTab(button.dataset.mapTab));
+    });
+
+    document.querySelectorAll('.map-node, .route-button').forEach((button) => {
+      button.addEventListener('click', () => {
+        setLocation(button.dataset.location, true);
+        setMapTab('current');
+      });
+    });
+
+    document.querySelectorAll('.choice').forEach((button) => {
+      button.addEventListener('click', () => resolveRoll(button.dataset.choice));
+    });
+
+    document.getElementById('commandForm').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const input = document.getElementById('commandInput');
+      const value = input.value.trim();
+      if (!value) return;
+      resolveRoll(value);
+      input.value = '';
+    });
+
+    dialogueWindow.scrollTop = dialogueWindow.scrollHeight;
+  </script>
+</body>
+</html>
