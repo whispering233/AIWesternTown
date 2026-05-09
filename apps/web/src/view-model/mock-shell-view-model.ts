@@ -13,7 +13,6 @@ export function createMockShellViewModel(): ShellViewModel {
     leftPanel: {
       title: "Context",
       description: "玩家状态、日志和人物卡统一收在左栏，不打断主栏叙事。",
-      placeholderTitle: "当前状态",
       placeholderBody:
         "当前先保留状态页骨架。等世界日志、事件编年或调查索引接入后，它会沿用同一套编辑式视觉语言。",
       statusItems: [
@@ -69,20 +68,6 @@ export function createMockShellViewModel(): ShellViewModel {
           initial: "E",
           detail: "她盯着楼梯口，像是在等人离开，又像是在怕某人回来。"
         }
-      ],
-      entries: [
-        {
-          id: "left-world-log",
-          label: "Event Stream",
-          title: "世界事件流",
-          body: "未来展示时间线式世界事件、远场变化和编年记录。"
-        },
-        {
-          id: "left-index",
-          label: "Journal",
-          title: "卷宗索引",
-          body: "也可以在这里承接人物索引、地点索引或调查条目。"
-        }
       ]
     },
     scene: {
@@ -94,26 +79,6 @@ export function createMockShellViewModel(): ShellViewModel {
       timeLabel: "Day 1 · Dusk",
       locationLabel: "Dust Crossing / Main Street",
       runModeLabel: "free_explore"
-    },
-    movement: {
-      title: "可去地点",
-      description: "把移动放到主循环顶部，方便先走位再决定观察方向。",
-      items: [
-        {
-          id: "move-saloon",
-          sceneId: "saloon",
-          label: "走进酒馆",
-          hint: "本地移动，不推进世界",
-          commandText: "前往酒馆"
-        },
-        {
-          id: "move-stable",
-          sceneId: "stable",
-          label: "靠近马厩",
-          hint: "先缩短距离，再看动静来源",
-          commandText: "走近马厩"
-        }
-      ]
     },
     opportunities: {
       title: "现在可做的事",
@@ -151,26 +116,6 @@ export function createMockShellViewModel(): ShellViewModel {
         timestamp: "可行动",
         body:
           "可疑目标正在浮出：酒馆门口的沉默、诊所突然拉下的窗帘、马厩里被惊动的动静。"
-      }
-    ],
-    suggestions: [
-      {
-        id: "suggestion-1",
-        label: "观察酒馆门口",
-        hint: "机会动作会同步出现在主循环面板",
-        commandText: "观察酒馆门口那两个人的反应"
-      },
-      {
-        id: "suggestion-2",
-        label: "走近马厩",
-        hint: "移动 leads 会优先出现在场景头部",
-        commandText: "走近马厩，看看刚才是什么动静"
-      },
-      {
-        id: "suggestion-3",
-        label: "检查诊所",
-        hint: "保留自由输入作为补充入口",
-        commandText: "抬头看诊所的窗帘后面有没有人影"
       }
     ],
     composer: {
@@ -243,33 +188,6 @@ export function createMockShellViewModel(): ShellViewModel {
           sceneId: "stable",
           label: "马厩",
           isCurrent: false
-        }
-      ]
-    },
-    debugPanel: {
-      title: "系统侧栏",
-      description: "调试信息保留独立挂点，不再进入主界面右侧地图栏。",
-      cards: [
-        {
-          id: "debug-transport",
-          title: "Transport State",
-          description: "预留 SSE 连接状态、最近一次事件 ID 和会话标识。",
-          status: "placeholder",
-          statusLabel: "占位"
-        },
-        {
-          id: "debug-trace",
-          title: "Trace Preview",
-          description: "预留最近命令、回执摘要和调试详情入口。",
-          status: "mock",
-          statusLabel: "Mock"
-        },
-        {
-          id: "debug-route",
-          title: "Debug Route Handoff",
-          description: "未来可以从这里跳转到更完整的调试页或子页面。",
-          status: "locked",
-          statusLabel: "Later"
         }
       ]
     }

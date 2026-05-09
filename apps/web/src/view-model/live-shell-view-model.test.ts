@@ -50,11 +50,13 @@ const saloonCommand: PlayerCommandEnvelope = {
   }
 };
 
-test("buildLiveShellViewModel exposes movement leads for the current scene", () => {
+test("buildLiveShellViewModel exposes current scene choices and map routes", () => {
   const viewModel = buildLiveShellViewModel(createRuntimeState());
 
   assert.equal(viewModel.scene.locationLabel, "Rail House Hotel Lobby");
-  assert.ok(viewModel.movement.items.some((item) => item.sceneId === "saloon"));
+  assert.ok(
+    viewModel.mapPanel.routes.some((item) => item.sceneId === "saloon")
+  );
   assert.ok(viewModel.opportunities.items.some((item) => item.kind === "observe"));
 });
 
@@ -84,7 +86,18 @@ test("buildLiveShellViewModel exposes map panel routes for the right rail", () =
   );
 });
 
-test("buildLiveShellViewModel keeps accepted commands, world events, and traces in separate UI zones", () => {
+test("buildLiveShellViewModel does not expose legacy shell UI fields", () => {
+  const viewModel = buildLiveShellViewModel(createRuntimeState()) as Record<
+    string,
+    unknown
+  >;
+
+  assert.equal(Object.hasOwn(viewModel, "movement"), false);
+  assert.equal(Object.hasOwn(viewModel, "suggestions"), false);
+  assert.equal(Object.hasOwn(viewModel, "debugPanel"), false);
+});
+
+test("buildLiveShellViewModel keeps accepted commands and world events in narrative and log zones", () => {
   const viewModel = buildLiveShellViewModel(
     createRuntimeState({
       streamEvents: [
@@ -144,11 +157,12 @@ test("buildLiveShellViewModel keeps accepted commands, world events, and traces 
     })
   );
 
+  assert.equal(viewModel.scene.runModeLabel, "settle");
   assert.ok(viewModel.feed.some((entry) => entry.label === "宿主已接收"));
   assert.ok(viewModel.feed.some((entry) => entry.label === "世界后果"));
   assert.ok(
-    viewModel.debugPanel.cards.some((card) =>
-      card.description.includes("trace-1")
+    viewModel.leftPanel.logEntries.some((entry) =>
+      entry.body.includes("Eliza Wynn glances")
     )
   );
 });
@@ -223,7 +237,7 @@ test("buildLiveShellViewModel keeps the main feed scoped to the latest submitted
   );
 });
 
-test("buildLiveShellViewModel keeps command suggestions scoped to the player scene", () => {
+test("buildLiveShellViewModel keeps opportunities scoped to the player scene", () => {
   const viewModel = buildLiveShellViewModel(
     createRuntimeState({
       streamEvents: [
@@ -272,13 +286,13 @@ test("buildLiveShellViewModel keeps command suggestions scoped to the player sce
 
   assert.equal(viewModel.scene.sceneId, "saloon");
   assert.ok(
-    viewModel.suggestions.some((suggestion) =>
-      suggestion.label.includes("Mara Holt")
+    viewModel.opportunities.items.some((opportunity) =>
+      opportunity.title.includes("Mara Holt")
     )
   );
   assert.ok(
-    viewModel.suggestions.every((suggestion) =>
-      !suggestion.label.includes("Eliza Wynn")
+    viewModel.opportunities.items.every((opportunity) =>
+      !opportunity.title.includes("Eliza Wynn")
     )
   );
 });

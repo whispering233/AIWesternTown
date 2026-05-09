@@ -11,12 +11,10 @@ type LeftPanelSlotProps = {
   panel: {
     title: string;
     description: string;
-    placeholderTitle: string;
     placeholderBody: string;
     statusItems: LeftPanelStatusItem[];
     logEntries: LeftPanelEntry[];
     characters: CharacterCardItem[];
-    entries: LeftPanelEntry[];
   };
 };
 

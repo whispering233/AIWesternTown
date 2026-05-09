@@ -3,11 +3,9 @@ import type { LocalSessionRuntimeState } from "@ai-western-town/ui-sdk";
 
 import type {
   CharacterCardItem,
-  DebugPanelCard,
   LeftPanelEntry,
   LeftPanelStatusItem,
   MapPanelModel,
-  MovementItem,
   OpportunityItem,
   SceneFeedEntry,
   ShellViewModel
@@ -19,7 +17,6 @@ type SceneDefinition = {
   summary: string;
   kicker: string;
   connections: string[];
-  movementHint: string;
   opportunities: OpportunityItem[];
 };
 
@@ -31,7 +28,6 @@ const sceneDefinitions: Record<string, SceneDefinition> = {
       "A busy saloon where gossip, deals, and grudges mix under lamp smoke.",
     kicker: "Starter Town",
     connections: ["hotel_lobby", "sheriff_office"],
-    movementHint: "本地移动，先换场再决定观察对象。",
     opportunities: [
       {
         id: "opp-saloon-observe-room",
@@ -56,7 +52,6 @@ const sceneDefinitions: Record<string, SceneDefinition> = {
       "A cramped civic office with a desk, a lockbox, and too many unanswered questions.",
     kicker: "Starter Town",
     connections: ["saloon", "train_station"],
-    movementHint: "转去别处前，先确认这里有没有更明确的痕迹。",
     opportunities: [
       {
         id: "opp-office-inspect-desk",
@@ -81,7 +76,6 @@ const sceneDefinitions: Record<string, SceneDefinition> = {
       "A worn lobby where travelers rest and local business changes hands quietly.",
     kicker: "Starter Town",
     connections: ["saloon", "train_station"],
-    movementHint: "这是适合先观察再决定是否追上的地点。",
     opportunities: [
       {
         id: "opp-hotel-observe-doctor",
@@ -106,7 +100,6 @@ const sceneDefinitions: Record<string, SceneDefinition> = {
       "A small platform and ticket room where arrivals can shift the whole town's mood.",
     kicker: "Starter Town",
     connections: ["hotel_lobby", "sheriff_office"],
-    movementHint: "适合先确认到站与离站的异常，再决定追人还是回镇上。",
     opportunities: [
       {
         id: "opp-station-eavesdrop-platform",
@@ -129,23 +122,8 @@ const sceneDefinitions: Record<string, SceneDefinition> = {
 const defaultLeftPanel = {
   title: "Context",
   description: "玩家状态、日志和人物卡统一收在这里，避免主交互栏被历史信息撑开。",
-  placeholderTitle: "当前状态",
   placeholderBody:
-    "这里保留当前地点、世界 tick、运行模式和风险提示。后续可接入更完整的状态卡。",
-  entries: [
-    {
-      id: "left-world-log",
-      label: "Event Stream",
-      title: "世界事件流",
-      body: "后续接入远场事件、宿主回执和关键人物反应，作为可回看的短摘要。"
-    },
-    {
-      id: "left-case-index",
-      label: "Journal",
-      title: "卷宗索引",
-      body: "后续可放人物、地点和调查条目索引。"
-    }
-  ]
+    "这里保留当前地点、世界 tick、运行模式和风险提示。后续可接入更完整的状态卡。"
 } as const;
 
 const defaultCharacters: CharacterCardItem[] = [
@@ -207,23 +185,12 @@ export function buildLiveShellViewModel(
       locationLabel: scene.displayName,
       runModeLabel: traceSummary?.runModeAfter ?? "free_explore"
     },
-    movement: {
-      title: "可去地点",
-      description: scene.movementHint,
-      items: buildMovementItems(scene)
-    },
     opportunities: {
       title: "现在可做的事",
       description: "把当前最像下一步的观察和介入动作前置。",
       items: [...scene.opportunities]
     },
     feed: buildFeedEntries(runtimeState),
-    suggestions: scene.opportunities.slice(0, 3).map((opportunity) => ({
-      id: `suggestion-${opportunity.id}`,
-      label: opportunity.title,
-      hint: opportunity.detail,
-      commandText: opportunity.commandText
-    })),
     composer: {
       title: "输入你想做的事",
       description: "你可以直接输入，也可以先选择当前选项；移动统一通过右侧地图提交。",
@@ -236,12 +203,7 @@ export function buildLiveShellViewModel(
         runtimeState.lastSubmittedCommand
       )
     },
-    mapPanel: buildMapPanel(scene),
-    debugPanel: {
-      title: "系统侧栏",
-      description: "调试信息保留独立挂点，不再混入主界面地图栏。",
-      cards: buildDebugCards(runtimeState)
-    }
+    mapPanel: buildMapPanel(scene)
   };
 }
 
@@ -280,8 +242,7 @@ function buildLeftPanel(
     ...defaultLeftPanel,
     statusItems,
     logEntries,
-    characters: defaultCharacters,
-    entries: [...defaultLeftPanel.entries]
+    characters: defaultCharacters
   };
 }
 
@@ -362,19 +323,6 @@ function inferCurrentSceneId(runtimeState: LocalSessionRuntimeState): string {
   return "hotel_lobby";
 }
 
-function buildMovementItems(scene: SceneDefinition): MovementItem[] {
-  return scene.connections
-    .map((sceneId) => sceneDefinitions[sceneId])
-    .filter((entry): entry is SceneDefinition => entry !== undefined)
-    .map((entry) => ({
-      id: `move-${scene.sceneId}-${entry.sceneId}`,
-      sceneId: entry.sceneId,
-      label: entry.displayName,
-      hint: "本地移动 lead",
-      commandText: `前往 ${entry.displayName}`
-    }));
-}
-
 function buildFeedEntries(
   runtimeState: LocalSessionRuntimeState
 ): SceneFeedEntry[] {
@@ -441,41 +389,6 @@ function buildFeedEntries(
       label: "场景",
       timestamp: "等待连接",
       body: "Local host 接通后，这里会按“玩家命令 -> 宿主接收 -> 世界后果”持续刷新。"
-    }
-  ];
-}
-
-function buildDebugCards(
-  runtimeState: LocalSessionRuntimeState
-): DebugPanelCard[] {
-  const latestTrace =
-    runtimeState.lastTrace ?? findLatestTrace(runtimeState.streamEvents);
-
-  return [
-    {
-      id: "debug-transport",
-      title: "Transport State",
-      description: `connection=${runtimeState.connectionState}; session=${runtimeState.session?.sessionId ?? "pending"}; tick=${runtimeState.session?.worldTick ?? 0}`,
-      status: runtimeState.connectionState === "live" ? "mock" : "placeholder",
-      statusLabel: runtimeState.connectionState === "live" ? "Live" : "Connecting"
-    },
-    {
-      id: "debug-trace",
-      title: "Latest Trace",
-      description: latestTrace
-        ? `trace=${latestTrace.traceId}; runMode=${latestTrace.runModeAfter}; appended=${latestTrace.appendedEventIds.length}`
-        : "尚未收到 tick.trace。",
-      status: latestTrace ? "mock" : "placeholder",
-      statusLabel: latestTrace ? "Trace" : "Waiting"
-    },
-    {
-      id: "debug-errors",
-      title: "Runtime Guard",
-      description: runtimeState.lastError
-        ? `lastError=${String(runtimeState.lastError)}`
-        : "当前没有记录到 transport 错误。",
-      status: runtimeState.lastError ? "locked" : "placeholder",
-      statusLabel: runtimeState.lastError ? "Check" : "Clear"
     }
   ];
 }
